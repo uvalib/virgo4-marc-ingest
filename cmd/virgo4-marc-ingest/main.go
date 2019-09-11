@@ -18,7 +18,7 @@ import (
 //
 func main() {
 
-	//log.Printf("===> V4 batch ingest service staring up <===")
+	log.Printf("===> %s service staring up <===", os.Args[ 0 ] )
 
 	// Get config params and use them to init service context. Any issues are fatal
 	cfg := LoadConfiguration()
