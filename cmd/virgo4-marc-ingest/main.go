@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -46,6 +47,7 @@ func main() {
 	defer file.Close( )
 
 	count := 0
+	start := time.Now()
 
 	for {
         // read the next record
@@ -87,11 +89,17 @@ func main() {
 		}
 
 		count ++
+		duration := time.Since(start)
 		if count % 100 == 0 {
-			log.Printf("Processed %d records...", count )
+			log.Printf("Processed %d records (%0.2f tps)", count, float64( count ) / duration.Seconds() )
+		}
+
+		if cfg.MaxCount > 0 && count >= cfg.MaxCount  {
+			break
 		}
 	}
-	log.Printf("Done, processed %d records", count )
+	duration := time.Since(start)
+	log.Printf("Done, processed %d records (%0.2f tps)", count, float64( count ) / duration.Seconds() )
 }
 
 func marcRead( infile io.Reader ) ( []byte, error ) {
