@@ -9,7 +9,7 @@ import (
 type ServiceConfig struct {
 	OutQueueName  string
 	FileName      string
-	MaxCount      int
+	MaxCount      uint
 }
 
 // LoadConfiguration will load the service configuration from env/cmdline
@@ -20,7 +20,7 @@ func LoadConfiguration() *ServiceConfig {
 	var cfg ServiceConfig
 	flag.StringVar(&cfg.OutQueueName, "outqueue", "", "Outbound queue name")
 	flag.StringVar(&cfg.FileName, "infile", "", "Batch file")
-	flag.IntVar(&cfg.MaxCount, "max", 0, "Maximum number of records to ingest (0 is all of them)")
+	flag.UintVar(&cfg.MaxCount, "max", 0, "Maximum number of records to ingest (0 is all of them)")
 
 	flag.Parse()
 
