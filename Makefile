@@ -2,6 +2,8 @@ GOCMD=go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
+GOGET = $(GOCMD) get
+GOMOD = $(GOCMD) mod
 PACKAGENAME=virgo4-marc-ingest
 BINNAME=$(PACKAGENAME)
 
@@ -18,3 +20,8 @@ linux:
 clean:
 	$(GOCLEAN) cmd/
 	rm -rf bin
+
+dep:
+	cd cmd/$(PACKAGENAME); $(GOGET) -u
+	$(GOMOD) tidy
+	$(GOMOD) verify
