@@ -40,6 +40,7 @@ func s3download( downloadDir string, bucket string, object string ) ( string, er
       return "", err
    }
 
+   log.Printf("Download complete" )
    return file.Name( ), nil
 }
 

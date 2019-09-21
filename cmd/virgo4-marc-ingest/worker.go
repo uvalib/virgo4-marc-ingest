@@ -7,6 +7,9 @@ import (
    "time"
 )
 
+// time to wait before flushing pending records
+var flushTimeout = 5 * time.Second
+
 func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <- chan []byte, ) {
 
    count := uint( 1 )
@@ -20,7 +23,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <- c
       select {
       case message = <- messages:
          break
-      case <- time.After( 5 * time.Second ):
+      case <- time.After( flushTimeout ):
          timeout = true
          break
       }
@@ -52,7 +55,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <- c
          }
       } else {
 
-         // we timed out waitinf for new messages, lets flush what we have
+         // we timed out waiting for new messages, let's flush what we have
          if len( block ) != 0 {
 
             // send the block
@@ -64,8 +67,11 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <- c
             // reset the block
             block = block[:0]
 
-            log.Printf("Worker %d processed %d records (flush)", id, count)
+            log.Printf("Worker %d processed %d records (flushing)", id, count)
          }
+
+         // reset the count
+         count = 1
       }
    }
 
@@ -91,7 +97,7 @@ func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []stri
    // check the operation results
    for ix, op := range opStatus {
       if op == false {
-         log.Printf( "WARNING: message %d failed to send to outbound queue", ix )
+         log.Printf( "ERROR: message %d failed to send to outbound queue", ix )
       }
    }
 

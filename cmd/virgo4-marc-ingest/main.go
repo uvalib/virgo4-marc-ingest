@@ -7,9 +7,6 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-// the size of the marc record channel. We can queue this many items for work before we block on the next
-var channelBufferSize = 10000
-
 //
 // main entry point
 //
@@ -38,7 +35,7 @@ func main() {
 	}
 
 	// create the record channel
-	marcRecordsChan := make( chan []byte, channelBufferSize )
+	marcRecordsChan := make( chan []byte, cfg.WorkerQueueSize )
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {

@@ -7,12 +7,13 @@ import (
 )
 
 // ServiceConfig defines all of the service configuration parameters
-type ServiceConfig struct {
-	InQueueName    string
-	OutQueueName   string
-	PollTimeOut    int64
-	DownloadDir    string
-	Workers        int
+type ServiceConfig  struct {
+	InQueueName     string
+	OutQueueName    string
+	PollTimeOut     int64
+	DownloadDir     string
+	WorkerQueueSize int
+	Workers         int
 }
 
 func ensureSet(env string) string {
@@ -58,12 +59,14 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.OutQueueName = ensureSetAndNonEmpty( "VIRGO4_MARC_INGEST_OUT_QUEUE" )
 	cfg.PollTimeOut = int64( envToInt( "VIRGO4_MARC_INGEST_QUEUE_POLL_TIMEOUT" ) )
 	cfg.DownloadDir = ensureSetAndNonEmpty( "VIRGO4_MARC_INGEST_DOWNLOAD_DIR" )
+	cfg.WorkerQueueSize = envToInt( "VIRGO4_MARC_INGEST_WORK_QUEUE_SIZE" )
 	cfg.Workers = envToInt( "VIRGO4_MARC_INGEST_WORKERS" )
 
 	log.Printf("[CONFIG] InQueueName          = [%s]", cfg.InQueueName )
 	log.Printf("[CONFIG] OutQueueName         = [%s]", cfg.OutQueueName )
 	log.Printf("[CONFIG] PollTimeOut          = [%d]", cfg.PollTimeOut )
 	log.Printf("[CONFIG] DownloadDir          = [%s]", cfg.DownloadDir )
+	log.Printf("[CONFIG] WorkerQueueSize      = [%d]", cfg.WorkerQueueSize )
 	log.Printf("[CONFIG] Workers              = [%d]", cfg.Workers )
 
 	return &cfg

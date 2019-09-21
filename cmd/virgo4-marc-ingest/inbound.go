@@ -36,7 +36,7 @@ func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle aws
          // check the operation results
          for ix, op := range opStatus {
             if op == false {
-               log.Printf( "WARNING: message %d failed to delete", ix )
+               log.Printf( "ERROR: message %d failed to delete", ix )
             }
          }
 
@@ -53,7 +53,7 @@ func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle aws
 
             return localFiles, nil
          } else {
-            log.Printf("Not an interesting notification, ignoring" )
+            log.Printf("Not an interesting notification, ignoring it" )
          }
 
       } else {
