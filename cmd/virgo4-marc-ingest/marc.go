@@ -45,7 +45,7 @@ func marcLoader( filename string, marcRecords chan []byte ) error {
    }
 
    duration := time.Since(start)
-   log.Printf("Queued %s: %d records (%0.2f tps)", filename, count, float64( count ) / duration.Seconds() )
+   log.Printf("Completed %s: %d records (%0.2f tps)", filename, count, float64( count ) / duration.Seconds() )
 
    return nil
 }
