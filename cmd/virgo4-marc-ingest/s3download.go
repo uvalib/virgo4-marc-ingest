@@ -1,8 +1,10 @@
 package main
 
 import (
+   "fmt"
    "io/ioutil"
    "log"
+   "time"
 
    "github.com/aws/aws-sdk-go/aws"
    "github.com/aws/aws-sdk-go/aws/session"
@@ -21,7 +23,9 @@ func s3download( downloadDir string, bucket string, object string ) ( string, er
    }
    defer file.Close()
 
-   log.Printf("Downloading s3:/%s/%s to %s", bucket, object, file.Name( ) )
+   start := time.Now()
+   sourcename := fmt.Sprintf( "s3:/%s/%s", bucket, object )
+   log.Printf("Downloading %s to %s", sourcename, file.Name( ) )
 
    sess, err := session.NewSession( )
    if err != nil {
@@ -40,7 +44,8 @@ func s3download( downloadDir string, bucket string, object string ) ( string, er
       return "", err
    }
 
-   log.Printf("Download complete" )
+   duration := time.Since(start)
+   log.Printf("Download of %s complete in %0.2f seconds", sourcename, duration.Seconds() )
    return file.Name( ), nil
 }
 
