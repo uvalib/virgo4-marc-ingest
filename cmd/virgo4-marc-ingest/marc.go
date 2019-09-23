@@ -12,9 +12,9 @@ import (
 // the size of the MARC record header
 var headerSize = 5
 
-func marcLoader( filename string, marcRecords chan []byte ) error {
+func marcLoader( inbound InboundFile, marcRecords chan []byte ) error {
 
-   file, err := os.Open( filename )
+   file, err := os.Open( inbound.LocalName )
    if err != nil {
       return err
    }
@@ -45,7 +45,8 @@ func marcLoader( filename string, marcRecords chan []byte ) error {
    }
 
    duration := time.Since(start)
-   log.Printf("Completed %s: %d records (%0.2f tps)", filename, count, float64( count ) / duration.Seconds() )
+   log.Printf("Completed %s (%s): %d records (%0.2f tps)",
+      inbound.LocalName, inbound.SourceName, count, float64( count ) / duration.Seconds() )
 
    return nil
 }

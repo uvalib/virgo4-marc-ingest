@@ -45,13 +45,13 @@ func main() {
 	for {
 
 		// notification that there is a new ingest file to be processed
-		filenames, err := getIngestFiles( *cfg, aws, inQueueHandle )
+		inbound, err := getIngestFiles( *cfg, aws, inQueueHandle )
 		if err != nil {
 			log.Fatal( err )
 		}
 
 		// stream the contents to the record queue, the workers will handle it from there
-		for _, f := range filenames {
+		for _, f := range inbound {
 			err = marcLoader(f, marcRecordsChan)
 			if err != nil {
 				log.Fatal(err)

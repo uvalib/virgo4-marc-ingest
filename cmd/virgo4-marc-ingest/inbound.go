@@ -8,7 +8,14 @@ import (
    "time"
 )
 
-func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle ) ( []string, error ) {
+type InboundFile struct {
+
+   SourceName string
+   LocalName  string
+   Size       int64
+}
+
+func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle ) ( []InboundFile, error ) {
 
    for {
 
@@ -20,7 +27,7 @@ func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle aws
       // did we get anything to process
       if len( messages ) == 1 {
 
-         log.Printf("Received new notification" )
+         log.Printf("Received a new notification" )
 
          // assume the message is an S3 event containing a list of one or more new objecxts
          newS3objects, err := decodeS3Event( messages[ 0 ] )
@@ -42,13 +49,14 @@ func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle aws
 
          // we have some objects to download
          if len( newS3objects ) != 0 {
-            localFiles := make( []string, 0 )
+            localFiles := make( []InboundFile, 0 )
             for _, s3 := range newS3objects {
-               name, err := s3download( config.DownloadDir, s3.S3.Bucket.Name, s3.S3.Object.Key )
+               localname, err := s3download( config.DownloadDir, s3.S3.Bucket.Name, s3.S3.Object.Key )
                if err != nil {
                   return nil, err
                }
-               localFiles = append( localFiles, name )
+               localFiles = append( localFiles,
+                  InboundFile{ SourceName: s3.S3.Object.Key, LocalName: localname, Size: s3.S3.Object.Size } )
             }
 
             return localFiles, nil
@@ -57,7 +65,7 @@ func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle aws
          }
 
       } else {
-         log.Printf("No notifications..." )
+         log.Printf("No new notifications..." )
       }
    }
 }
@@ -76,10 +84,10 @@ func decodeS3Event( message awssqs.Message ) ( []S3EventRecord, error ) {
    return events.Records, nil
 }
 
-func removeIngestFile( filename string ) error {
+func removeIngestFile( inbound InboundFile ) error {
 
-   log.Printf("Removing %s", filename )
-   return os.Remove( filename )
+   log.Printf("Removing %s (%s)", inbound.LocalName, inbound.SourceName )
+   return os.Remove( inbound.LocalName )
 }
 
 //
