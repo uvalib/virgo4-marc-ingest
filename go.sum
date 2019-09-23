@@ -14,6 +14,10 @@ github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190921105400-99106ac250d5 h1:7H
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190921105400-99106ac250d5/go.mod h1:3VKWpNfOECsD3OSSaQB4ROojS1WIRgzAZMAscwDpH2g=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190921120811-6fbcb2174182 h1:K2ZzLPfAvraAjVzcmKRlSYWAXdfaOuJBVj9NjPhMZoo=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190921120811-6fbcb2174182/go.mod h1:3VKWpNfOECsD3OSSaQB4ROojS1WIRgzAZMAscwDpH2g=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190923121021-00077af80355 h1:JiUdLLdKZLRm6Ru/lYYOiMhfsuC5YDawOadVhoGSNAc=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190923121021-00077af80355/go.mod h1:3VKWpNfOECsD3OSSaQB4ROojS1WIRgzAZMAscwDpH2g=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190923121436-7bb03a09ed22 h1:4D9CopFXl8qVoETuV4DZWiUgK1YAaEcl1L2nmQW/iPs=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20190923121436-7bb03a09ed22/go.mod h1:3VKWpNfOECsD3OSSaQB4ROojS1WIRgzAZMAscwDpH2g=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab h1:h5tBRKZ1aY/bo6GNqe/4zWC8GkaLOFQ5wPKIOQ0i2sA=
 golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
