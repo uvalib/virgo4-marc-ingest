@@ -10,31 +10,28 @@ import (
 // time to wait before flushing pending records
 var flushTimeout = 5 * time.Second
 
-func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <- chan []byte, ) {
+func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- chan MarcRecord, ) {
 
    count := uint( 1 )
-   block := make( []string, 0, awssqs.MAX_SQS_BLOCK_COUNT )
-   var message []byte
+   block := make( []MarcRecord, 0, awssqs.MAX_SQS_BLOCK_COUNT )
+   var record MarcRecord
    for {
 
       timeout := false
 
       // process a message or wait...
       select {
-      case message = <- messages:
+      case record = <- records:
          break
       case <- time.After( flushTimeout ):
          timeout = true
          break
       }
 
-      // did we timeout, if so, we need to flush any pending work
+      // did we timeout, if not we have a message to process
       if timeout == false {
 
-         // we need to base64 encode these
-         enc := base64.StdEncoding.EncodeToString( message )
-
-         block = append(block, enc)
+         block = append(block, record)
 
          // have we reached a block size limit
          if count % awssqs.MAX_SQS_BLOCK_COUNT == 0 {
@@ -55,7 +52,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <- c
          }
       } else {
 
-         // we timed out waiting for new messages, let's flush what we have
+         // we timed out waiting for new messages, let's flush what we have (if anything)
          if len( block ) != 0 {
 
             // send the block
@@ -78,14 +75,14 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages <- c
    // should never get here
 }
 
-func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []string ) error {
+func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcRecord ) error {
 
-   count := len( messages )
+   count := len( records )
    if count == 0 {
       return nil
    }
    batch := make( []awssqs.Message, 0, count )
-   for _, m := range messages {
+   for _, m := range records {
       batch = append( batch, constructMessage( m ) )
    }
 
@@ -104,13 +101,13 @@ func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, messages []stri
    return nil
 }
 
-func constructMessage( message string ) awssqs.Message {
+func constructMessage( record MarcRecord ) awssqs.Message {
 
-   attributes := make( []awssqs.Attribute, 0, 1 )
-   //attributes = append( attributes, awssqs.Attribute{ "op", "add" } )
-   //attributes = append( attributes, awssqs.Attribute{ "src", filename } )
-   attributes = append( attributes, awssqs.Attribute{ "type", "base64/marc"} )
-   return awssqs.Message{ Attribs: attributes, Payload: awssqs.Payload( message )}
+   id, _ := record.Id( )
+   attributes := make( []awssqs.Attribute, 0, 2 )
+   attributes = append( attributes, awssqs.Attribute{ Name: "id", Value: id } )
+   attributes = append( attributes, awssqs.Attribute{ Name: "type", Value: "base64/marc"} )
+   return awssqs.Message{ Attribs: attributes, Payload: awssqs.Payload( base64.StdEncoding.EncodeToString( record.Raw( ) ) )}
 }
 
 //

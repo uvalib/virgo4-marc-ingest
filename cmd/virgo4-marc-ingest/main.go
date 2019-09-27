@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 
@@ -35,7 +36,7 @@ func main() {
 	}
 
 	// create the record channel
-	marcRecordsChan := make( chan []byte, cfg.WorkerQueueSize )
+	marcRecordsChan := make( chan MarcRecord, cfg.WorkerQueueSize )
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
@@ -52,9 +53,41 @@ func main() {
 
 		// stream the contents to the record queue, the workers will handle it from there
 		for _, f := range inbound {
-			err = marcLoader(f, marcRecordsChan)
+
+			// create a new loader
+			loader, err := NewMarcLoader( f.LocalName )
 			if err != nil {
-				log.Fatal(err)
+				log.Fatal( err )
+			}
+
+			// if the file appears to be valid, process it
+			count := 0
+			err = loader.Validate( )
+			if err == nil {
+				log.Printf("Processing %s (%s)", f.SourceName, f.LocalName )
+				rec, err := loader.First( true )
+				 if err == nil {
+				 	for {
+						count++
+						marcRecordsChan <- rec
+
+						rec, err = loader.Next( true )
+						if err != nil {
+							if err == io.EOF {
+								// this is our mechanism to indicate that the file was processed OK
+								err = nil
+							}
+							break
+						}
+					}
+				 }
+			} else {
+				// file is invalid in some manner and we should not processes it
+			}
+
+			loader.Done( )
+			if err == nil {
+				log.Printf("Done processing %s (%s). %d records", f.SourceName, f.LocalName, count )
 			}
 
 			// assume we have handled it correctly for now, we might have individual bogus records
