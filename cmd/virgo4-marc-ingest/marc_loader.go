@@ -99,27 +99,13 @@ func ( l * marcLoaderImpl ) First( readAhead bool ) ( MarcRecord, error ) {
       return nil, FileNotOpenError
    }
 
+   // go to the start of the file and then get the next record
    _, err := l.File.Seek( 0, 0 )
    if err != nil {
       return nil, err
    }
 
-   rec, err := l.rawMarcRead( )
-   if err != nil {
-      return nil, err
-   }
-
-   _, err = rec.Id( )
-   if err != nil {
-      return nil, err
-   }
-
-   // handle read ahead behavior here
-   if readAhead == true {
-
-   }
-
-   return rec, nil
+   return l.Next( readAhead )
 }
 
 func ( l * marcLoaderImpl ) Next( readAhead bool ) ( MarcRecord, error ) {
@@ -133,14 +119,50 @@ func ( l * marcLoaderImpl ) Next( readAhead bool ) ( MarcRecord, error ) {
       return nil, err
    }
 
-   _, err = rec.Id( )
+   id, err := rec.Id( )
    if err != nil {
       return nil, err
    }
 
-   // handle read ahead behavior here
+   //log.Printf( "INFO: marc record id: %s", id )
+
+   //
+   // there are times when the following record is really part of the current record. If this is the case, the 2 (or more)
+   // records are given the same id. Attempt to handle this here.
+   //
    if readAhead == true {
 
+      for {
+         // get the current position, assume no error cos we are not moving the file pointer
+         currentPos, _ := l.File.Seek( 0, 1 )
+
+         // get the next record
+         nextRec, err := l.rawMarcRead()
+         if err != nil {
+
+            // if we error move the file pointer back and return the previously read record without error
+            _, _ = l.File.Seek( currentPos, 0 )
+            return rec, nil
+         }
+
+         nextId, err := nextRec.Id( )
+         if err != nil {
+            // if we error move the file pointer back and return the previously read record without error
+            _, _ = l.File.Seek( currentPos, 0 )
+            return rec, nil
+         }
+
+         if id != nextId {
+            // if the id's do not match move the file pointer back and return the previously read record
+            _, _ = l.File.Seek( currentPos, 0 )
+            return rec, nil
+         }
+
+         // the id's match so we should append the contents of the next record onto the contents of the previous record
+         // and repeat the process
+         log.Printf( "WARNING: identified additional marc record for %s, appending it", id )
+         copy( rec.Raw( ), nextRec.Raw( ) )
+      }
    }
 
    return rec, nil
@@ -264,7 +286,7 @@ func ( r * marcRecordImpl ) getMarcFieldId( fieldId string ) ( string, error ) {
 
    // make sure we are actually pointing where we expect
    if endOfDir == 99999 || r.RawBytes[endOfDir - 1:endOfDir][0] != fieldTerminator {
-      log.Printf( "WOOP WOOP special case..." )
+      log.Printf( "BEEP BOOP special case..." )
    }
 
    for currentOffset < endOfDir {
