@@ -4,12 +4,13 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-// TEMP ONLY
-var doIngest = false
+// FIXME
+var doIngest = true
 
 //
 // main entry point
@@ -100,6 +101,7 @@ func main() {
 		// now we can process each of the inbound files
 		for ix, f := range inbound {
 
+			start := time.Now()
 			log.Printf("Processing %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ ix ] )
 
 			loader, err := NewMarcLoader( localNames[ ix ] )
@@ -125,7 +127,7 @@ func main() {
 			if err == nil {
 				for {
 					count++
-					// TEMP ONLY
+					// FIXME
 					if doIngest == true {
 						marcRecordsChan <- rec
 					}
@@ -144,7 +146,8 @@ func main() {
 			}
 
 			loader.Done( )
-			log.Printf("Done processing %s/%s (%s). %d records", f.SourceBucket, f.SourceKey, localNames[ ix ], count )
+			duration := time.Since(start)
+			log.Printf("Done processing %s/%s (%s). %d records (%0.2f tps)", f.SourceBucket, f.SourceKey, localNames[ ix ], count, float64( count ) / duration.Seconds() )
 
 			// file has been ingested, remove it
 			err = os.Remove( localNames[ ix ] )
