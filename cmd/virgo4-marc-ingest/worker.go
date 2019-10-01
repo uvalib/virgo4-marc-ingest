@@ -38,9 +38,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- ch
 
             // send the block
             err := sendMessages(aws, queue, block)
-            if err != nil {
-               log.Fatal(err)
-            }
+            fatalIfError( err )
 
             // reset the block
             block = block[:0]
@@ -57,9 +55,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- ch
 
             // send the block
             err := sendMessages(aws, queue, block)
-            if err != nil {
-               log.Fatal(err)
-            }
+            fatalIfError( err )
 
             // reset the block
             block = block[:0]
@@ -87,9 +83,7 @@ func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcR
    }
 
    opStatus, err := aws.BatchMessagePut( queue, batch )
-   if err != nil {
-      return err
-   }
+   fatalIfError( err )
 
    // check the operation results
    for ix, op := range opStatus {

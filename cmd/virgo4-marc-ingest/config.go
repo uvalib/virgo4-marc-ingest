@@ -42,10 +42,7 @@ func envToInt( env string ) int {
 
 	number := ensureSetAndNonEmpty( env )
 	n, err := strconv.Atoi( number )
-	if err != nil {
-
-		os.Exit(1)
-	}
+	fatalIfError( err )
 	return n
 }
 

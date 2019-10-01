@@ -69,10 +69,16 @@ func ( l * marcLoaderImpl ) Validate( ) error {
       return FileNotOpenError
    }
 
-   // get the first record and error out if bad
+   // get the first record and error out if bad. An EOF is OK, just means the file is empty
    _, err := l.First( false )
    if err != nil {
-      return err
+      // are we done
+      if err == io.EOF {
+         log.Printf( "WARNING: EOF on first read, looks like an empty file" )
+         return nil
+      } else {
+         return err
+      }
    }
 
    // read all the records and bail on the first failure except EOF
@@ -225,7 +231,6 @@ func ( l * marcLoaderImpl ) rawMarcRead( ) ( MarcRecord, error ) {
 
    log.Printf( "FIXME: %s", string( readBuf ) )
    return nil, BadMarcRecordError
-   //return &marcRecordImpl{ RawBytes: read_buf }, nil
 }
 
 func ( r * marcRecordImpl ) Id( ) ( string, error ) {
@@ -260,7 +265,7 @@ func ( r * marcRecordImpl ) extractId( ) ( string, error ) {
 
    r.marcId = id
 
-   //fmt.Printf( "ID: %s\n", r.marcId )
+   //log.Printf( "ID: %s", r.marcId )
    return r.marcId, nil
 }
 

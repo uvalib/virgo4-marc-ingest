@@ -8,6 +8,9 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
+// TEMP ONLY
+var doIngest = false
+
 //
 // main entry point
 //
@@ -20,20 +23,14 @@ func main() {
 
 	// load our AWS_SQS helper object
 	aws, err := awssqs.NewAwsSqs( awssqs.AwsSqsConfig{ } )
-	if err != nil {
-		log.Fatal( err )
-	}
+    fatalIfError( err )
 
 	// get the queue handles from the queue name
 	inQueueHandle, err := aws.QueueHandle( cfg.InQueueName )
-	if err != nil {
-		log.Fatal( err )
-	}
+    fatalIfError( err )
 
 	outQueueHandle, err := aws.QueueHandle( cfg.OutQueueName )
-	if err != nil {
-		log.Fatal( err )
-	}
+    fatalIfError( err )
 
 	// create the record channel
 	marcRecordsChan := make( chan MarcRecord, cfg.WorkerQueueSize )
@@ -44,57 +41,114 @@ func main() {
 	}
 
 	for {
+		// notification that there is one or more new ingest files to be processed
+		inbound, deleteHandle, err := getInboundNotification( *cfg, aws, inQueueHandle )
+        fatalIfError( err )
 
-		// notification that there is a new ingest file to be processed
-		inbound, err := getIngestFiles( *cfg, aws, inQueueHandle )
-		if err != nil {
-			log.Fatal( err )
-		}
+		// download each file and validate it
+		localNames := make( []string, 0, len( inbound ) )
+		for ix, f := range inbound {
 
-		// stream the contents to the record queue, the workers will handle it from there
-		for _, f := range inbound {
+			// download the file
+			localFile, err := s3download(cfg.DownloadDir, f.SourceBucket, f.SourceKey)
+            fatalIfError( err )
+
+			// save the local name, we will need it later
+			localNames = append( localNames, localFile )
+
+			log.Printf("Validating %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ ix ] )
 
 			// create a new loader
-			loader, err := NewMarcLoader( f.LocalName )
+			loader, err := NewMarcLoader( localNames[ ix ] )
+            fatalIfError( err )
+
+			// validate the file
+			err = loader.Validate()
+			loader.Done( )
 			if err != nil {
-				log.Fatal( err )
+				log.Printf("ERROR: %s/%s (%s) appears to be invalid, ignoring it", f.SourceBucket, f.SourceKey, localNames[ ix ] )
+				break
+			}
+		}
+
+		// one of the files was invalid, we need to ignore the entire batch and delete the local files
+		if err != nil {
+           for _, f := range localNames {
+			   err = os.Remove( f )
+               fatalIfError( err )
+		   }
+
+           // go back to waiting for the next notification
+           continue
+		}
+
+		// if we got here without an error then all the files are valid to be loaded... we can delete the inbound message
+		// because it has been processed
+
+		delMessages := make( []awssqs.Message, 0, 1 )
+		delMessages = append( delMessages, awssqs.Message{ DeleteHandle: deleteHandle } )
+		opStatus, err := aws.BatchMessageDelete( inQueueHandle, delMessages )
+        fatalIfError( err )
+
+		// check the operation results
+		for ix, op := range opStatus {
+			if op == false {
+				log.Printf( "ERROR: message %d failed to delete", ix )
+			}
+		}
+
+		// now we can process each of the inbound files
+		for ix, f := range inbound {
+
+			log.Printf("Processing %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ ix ] )
+
+			loader, err := NewMarcLoader( localNames[ ix ] )
+            // fatal fail here because we have already validated the file and believe it to be correct so this
+			// is some other sort of failure
+            fatalIfError( err )
+
+			// get the first record
+			count := 0
+			rec, err := loader.First( true )
+			if err != nil {
+				// are we done
+				if err == io.EOF {
+					log.Printf("WARNING: EOF on first read, looks like an empty file")
+				} else {
+					// fatal fail here because we have already validated the file and believe it to be correct so this
+					// is some other sort of failure
+					log.Fatal(err)
+				}
 			}
 
-			// if the file appears to be valid, process it
-			count := 0
-			err = loader.Validate( )
+			// we can get here with an error if the first read yields EOF
 			if err == nil {
-				log.Printf("Processing %s (%s)", f.SourceName, f.LocalName )
-				rec, err := loader.First( true )
-				 if err == nil {
-				 	for {
-						count++
+				for {
+					count++
+					// TEMP ONLY
+					if doIngest == true {
 						marcRecordsChan <- rec
+					}
 
-						rec, err = loader.Next( true )
-						if err != nil {
-							if err == io.EOF {
-								// this is our mechanism to indicate that the file was processed OK
-								err = nil
-							}
+					rec, err = loader.Next(true)
+					if err != nil {
+						if err == io.EOF {
+							// this is expected, break out of the processing loop
 							break
 						}
+						// fatal fail here because we have already validated the file and believe it to be correct so this
+						// is some other sort of failure
+						log.Fatal(err)
 					}
-				 }
-			} else {
-				// file is invalid in some manner and we should not processes it
+				}
 			}
 
 			loader.Done( )
-			if err == nil {
-				log.Printf("Done processing %s (%s). %d records", f.SourceName, f.LocalName, count )
-			}
+			log.Printf("Done processing %s/%s (%s). %d records", f.SourceBucket, f.SourceKey, localNames[ ix ], count )
 
-			// assume we have handled it correctly for now, we might have individual bogus records
-			err = removeIngestFile( f )
-			if err != nil {
-				log.Fatal( err )
-			}
+			// file has been ingested, remove it
+			err = os.Remove( localNames[ ix ] )
+            fatalIfError( err )
 		}
 	}
 }

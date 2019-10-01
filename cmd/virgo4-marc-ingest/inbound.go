@@ -4,24 +4,24 @@ import (
    "encoding/json"
    "github.com/uvalib/virgo4-sqs-sdk/awssqs"
    "log"
-   "os"
    "time"
 )
 
 type InboundFile struct {
 
-   SourceName string
-   LocalName  string
-   Size       int64
+   SourceBucket string
+   SourceKey    string
+   ObjectSize   int64
 }
 
-func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle ) ( []InboundFile, error ) {
+func getInboundNotification( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle ) ( []InboundFile, awssqs.DeleteHandle, error ) {
 
    for {
 
+      // get the next message if one is available
       messages, err := aws.BatchMessageGet( inQueueHandle, 1, time.Duration( config.PollTimeOut ) * time.Second )
       if err != nil {
-         return nil, err
+         return nil, "", err
       }
 
       // did we get anything to process
@@ -29,39 +29,28 @@ func getIngestFiles( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle aws
 
          log.Printf("Received a new notification" )
 
+         //log.Printf("%s", string( messages[0].Payload ) )
+
          // assume the message is an S3 event containing a list of one or more new objecxts
          newS3objects, err := decodeS3Event( messages[ 0 ] )
          if err != nil {
-            return nil, err
-         }
-
-         opStatus, err := aws.BatchMessageDelete( inQueueHandle, messages )
-         if err != nil {
-            return nil, err
-         }
-
-         // check the operation results
-         for ix, op := range opStatus {
-            if op == false {
-               log.Printf( "ERROR: message %d failed to delete", ix )
-            }
+            return nil, "", err
          }
 
          // we have some objects to download
          if len( newS3objects ) != 0 {
-            localFiles := make( []InboundFile, 0 )
+            inboundFiles := make( []InboundFile, 0 )
             for _, s3 := range newS3objects {
-               localname, err := s3download( config.DownloadDir, s3.S3.Bucket.Name, s3.S3.Object.Key )
-               if err != nil {
-                  return nil, err
-               }
-               localFiles = append( localFiles,
-                  InboundFile{ SourceName: s3.S3.Object.Key, LocalName: localname, Size: s3.S3.Object.Size } )
+               inboundFiles = append( inboundFiles,
+                  InboundFile{
+                     SourceBucket: s3.S3.Bucket.Name,
+                     SourceKey: s3.S3.Object.Key,
+                     ObjectSize: s3.S3.Object.Size } )
             }
 
-            return localFiles, nil
+            return inboundFiles, messages[0].DeleteHandle, nil
          } else {
-            log.Printf("Not an interesting notification, ignoring it" )
+            log.Printf("WARNING: not an interesting notification, ignoring it" )
          }
 
       } else {
@@ -82,12 +71,6 @@ func decodeS3Event( message awssqs.Message ) ( []S3EventRecord, error ) {
       return nil, err
    }
    return events.Records, nil
-}
-
-func removeIngestFile( inbound InboundFile ) error {
-
-   log.Printf("Removing %s (%s)", inbound.LocalName, inbound.SourceName )
-   return os.Remove( inbound.LocalName )
 }
 
 //
