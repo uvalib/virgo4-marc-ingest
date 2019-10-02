@@ -10,7 +10,7 @@ import (
 // time to wait before flushing pending records
 var flushTimeout = 5 * time.Second
 
-func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- chan MarcRecord, ) {
+func worker( id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- chan MarcRecord ) {
 
    count := uint( 1 )
    block := make( []MarcRecord, 0, awssqs.MAX_SQS_BLOCK_COUNT )
@@ -37,7 +37,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- ch
          if count % awssqs.MAX_SQS_BLOCK_COUNT == 0 {
 
             // send the block
-            err := sendMessages(aws, queue, block)
+            err := sendMessages(config, aws, queue, block)
             fatalIfError( err )
 
             // reset the block
@@ -54,7 +54,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- ch
          if len( block ) != 0 {
 
             // send the block
-            err := sendMessages(aws, queue, block)
+            err := sendMessages(config, aws, queue, block)
             fatalIfError( err )
 
             // reset the block
@@ -71,7 +71,7 @@ func worker( id int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <- ch
    // should never get here
 }
 
-func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcRecord ) error {
+func sendMessages( config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcRecord ) error {
 
    count := len( records )
    if count == 0 {
@@ -79,7 +79,7 @@ func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcR
    }
    batch := make( []awssqs.Message, 0, count )
    for _, m := range records {
-      batch = append( batch, constructMessage( m ) )
+      batch = append( batch, constructMessage( m, config.DataSourceName ) )
    }
 
    opStatus, err := aws.BatchMessagePut( queue, batch )
@@ -95,12 +95,13 @@ func sendMessages( aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcR
    return nil
 }
 
-func constructMessage( record MarcRecord ) awssqs.Message {
+func constructMessage( record MarcRecord, source string ) awssqs.Message {
 
    id, _ := record.Id( )
-   attributes := make( []awssqs.Attribute, 0, 2 )
+   attributes := make( []awssqs.Attribute, 0, 3 )
    attributes = append( attributes, awssqs.Attribute{ Name: "id", Value: id } )
-   attributes = append( attributes, awssqs.Attribute{ Name: "type", Value: "base64/marc"} )
+   attributes = append( attributes, awssqs.Attribute{ Name: "type", Value: "base64/marc" } )
+   attributes = append( attributes, awssqs.Attribute{ Name: "source", Value: source } )
    return awssqs.Message{ Attribs: attributes, Payload: awssqs.Payload( base64.StdEncoding.EncodeToString( record.Raw( ) ) )}
 }
 

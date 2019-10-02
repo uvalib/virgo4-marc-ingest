@@ -12,6 +12,17 @@ import (
    "github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
+var downloader * s3manager.Downloader
+
+// set up our S3 management objects
+func init( ) {
+
+   sess, err := session.NewSession( )
+   if err == nil {
+      downloader = s3manager.NewDownloader( sess )
+   }
+}
+
 // taken from https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/go/example_code/s3/s3_download_object.go
 
 func s3download( downloadDir string, bucket string, object string ) ( string, error ) {
@@ -23,17 +34,10 @@ func s3download( downloadDir string, bucket string, object string ) ( string, er
    }
    defer file.Close()
 
-   start := time.Now()
    sourcename := fmt.Sprintf( "s3:/%s/%s", bucket, object )
    log.Printf("Downloading %s to %s", sourcename, file.Name( ) )
 
-   sess, err := session.NewSession( )
-   if err != nil {
-      return "", err
-   }
-
-   downloader := s3manager.NewDownloader( sess )
-
+   start := time.Now()
    _, err = downloader.Download( file,
       &s3.GetObjectInput{
          Bucket: aws.String(bucket),

@@ -23,7 +23,7 @@ func main() {
 	cfg := LoadConfiguration()
 
 	// load our AWS_SQS helper object
-	aws, err := awssqs.NewAwsSqs( awssqs.AwsSqsConfig{ } )
+	aws, err := awssqs.NewAwsSqs( awssqs.AwsSqsConfig{ MessageBucketName: cfg.MessageBucketName } )
     fatalIfError( err )
 
 	// get the queue handles from the queue name
@@ -38,12 +38,12 @@ func main() {
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker( w, aws, outQueueHandle, marcRecordsChan )
+		go worker( w, *cfg, aws, outQueueHandle, marcRecordsChan )
 	}
 
 	for {
 		// notification that there is one or more new ingest files to be processed
-		inbound, deleteHandle, err := getInboundNotification( *cfg, aws, inQueueHandle )
+		inbound, receiptHandle, err := getInboundNotification( *cfg, aws, inQueueHandle )
         fatalIfError( err )
 
 		// download each file and validate it
@@ -87,7 +87,7 @@ func main() {
 		// because it has been processed
 
 		delMessages := make( []awssqs.Message, 0, 1 )
-		delMessages = append( delMessages, awssqs.Message{ DeleteHandle: deleteHandle } )
+		delMessages = append( delMessages, awssqs.Message{ ReceiptHandle: receiptHandle} )
 		opStatus, err := aws.BatchMessageDelete( inQueueHandle, delMessages )
         fatalIfError( err )
 

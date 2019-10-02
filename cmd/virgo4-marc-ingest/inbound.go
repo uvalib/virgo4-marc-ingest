@@ -14,7 +14,7 @@ type InboundFile struct {
    ObjectSize   int64
 }
 
-func getInboundNotification( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle ) ( []InboundFile, awssqs.DeleteHandle, error ) {
+func getInboundNotification( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle ) ( []InboundFile, awssqs.ReceiptHandle, error ) {
 
    for {
 
@@ -48,7 +48,7 @@ func getInboundNotification( config ServiceConfig, aws awssqs.AWS_SQS, inQueueHa
                      ObjectSize: s3.S3.Object.Size } )
             }
 
-            return inboundFiles, messages[0].DeleteHandle, nil
+            return inboundFiles, messages[0].ReceiptHandle, nil
          } else {
             log.Printf("WARNING: not an interesting notification, ignoring it" )
          }
