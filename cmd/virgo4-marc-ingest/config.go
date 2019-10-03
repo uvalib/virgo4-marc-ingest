@@ -8,14 +8,16 @@ import (
 
 // ServiceConfig defines all of the service configuration parameters
 type ServiceConfig  struct {
-	InQueueName       string
-	OutQueueName      string
-	PollTimeOut       int64
-	DataSourceName    string
-	MessageBucketName string
-	DownloadDir       string
-	WorkerQueueSize   int
-	Workers           int
+	InQueueName       string   // SQS queue name for inbound documents
+	OutQueueName      string   // SQS queue name for outbound documents
+	PollTimeOut       int64    // the SQS queue timeout (in seconds)
+
+	DataSourceName    string   // the name to associate the data with. Each record has metadata showing this value
+	MessageBucketName string   // the bucket to use for large messages
+	DownloadDir       string   // the S3 file download directory (local)
+
+	WorkerQueueSize   int      // the inbound message queue size to feed the workers
+	Workers           int      // the number of worker processes
 }
 
 func ensureSet(env string) string {
