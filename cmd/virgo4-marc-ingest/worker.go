@@ -37,7 +37,7 @@ func worker( id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.Queu
          if count % awssqs.MAX_SQS_BLOCK_COUNT == 0 {
 
             // send the block
-            err := sendMessages(config, aws, queue, block)
+            err := sendOutboundMessages(config, aws, queue, block)
             fatalIfError( err )
 
             // reset the block
@@ -54,7 +54,7 @@ func worker( id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.Queu
          if len( block ) != 0 {
 
             // send the block
-            err := sendMessages(config, aws, queue, block)
+            err := sendOutboundMessages(config, aws, queue, block)
             fatalIfError( err )
 
             // reset the block
@@ -71,7 +71,7 @@ func worker( id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.Queu
    // should never get here
 }
 
-func sendMessages( config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcRecord ) error {
+func sendOutboundMessages( config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcRecord ) error {
 
    count := len( records )
    if count == 0 {
@@ -83,12 +83,39 @@ func sendMessages( config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueH
    }
 
    opStatus, err := aws.BatchMessagePut( queue, batch )
-   fatalIfError( err )
+   if err != nil {
+      if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+         return err
+      }
+   }
 
-   // check the operation results
-   for ix, op := range opStatus {
-      if op == false {
-         log.Printf( "ERROR: message %d failed to send to outbound queue", ix )
+   // if one or more message failed to send, retry...
+   if err == awssqs.OneOrMoreOperationsUnsuccessfulError {
+      retryMessages := make( []awssqs.Message, 0, count )
+
+      // check the operation results
+      for ix, op := range opStatus {
+         if op == false {
+            log.Printf("WARNING: message %d failed to send to queue, retrying", ix)
+            retryMessages = append( retryMessages, batch[ ix ] )
+         }
+      }
+
+      // attempt another send of the ones that failed last time
+      opStatus, err = aws.BatchMessagePut( queue, retryMessages )
+      if err != nil {
+         if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+            return err
+         }
+      }
+
+      // did we fail again
+      if err == awssqs.OneOrMoreOperationsUnsuccessfulError {
+         for ix, op := range opStatus {
+            if op == false {
+               log.Printf("ERROR: message %d failed to send to queue, giving up", ix)
+            }
+         }
       }
    }
 
