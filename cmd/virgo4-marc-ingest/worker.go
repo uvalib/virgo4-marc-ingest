@@ -129,7 +129,7 @@ func constructMessage(record MarcRecord, source string) awssqs.Message {
 	attributes = append(attributes, awssqs.Attribute{Name: "id", Value: id})
 	attributes = append(attributes, awssqs.Attribute{Name: "type", Value: "base64/marc"})
 	attributes = append(attributes, awssqs.Attribute{Name: "source", Value: source})
-	return awssqs.Message{Attribs: attributes, Payload: []byte( base64.StdEncoding.EncodeToString(record.Raw()))}
+	return awssqs.Message{Attribs: attributes, Payload: []byte(base64.StdEncoding.EncodeToString(record.Raw()))}
 }
 
 //
