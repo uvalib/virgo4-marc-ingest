@@ -30,7 +30,10 @@ func main() {
 	inQueueHandle, err := aws.QueueHandle(cfg.InQueueName)
 	fatalIfError(err)
 
-	outQueueHandle, err := aws.QueueHandle(cfg.OutQueueName)
+	outQueue1Handle, err := aws.QueueHandle(cfg.OutQueue1Name)
+	fatalIfError(err)
+
+	outQueue2Handle, err := aws.QueueHandle(cfg.OutQueue2Name)
 	fatalIfError(err)
 
 	// create the record channel
@@ -38,7 +41,7 @@ func main() {
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker(w, *cfg, aws, outQueueHandle, marcRecordsChan)
+		go worker(w, *cfg, aws, outQueue1Handle, outQueue2Handle, marcRecordsChan)
 	}
 
 	for {

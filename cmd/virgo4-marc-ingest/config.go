@@ -8,9 +8,10 @@ import (
 
 // ServiceConfig defines all of the service configuration parameters
 type ServiceConfig struct {
-	InQueueName  string // SQS queue name for inbound documents
-	OutQueueName string // SQS queue name for outbound documents
-	PollTimeOut  int64  // the SQS queue timeout (in seconds)
+	InQueueName   string // SQS queue name for inbound documents
+	OutQueue1Name string // SQS queue 1 name for outbound documents
+	OutQueue2Name string // SQS queue 2 name for outbound documents
+	PollTimeOut   int64  // the SQS queue timeout (in seconds)
 
 	DataSourceName    string // the name to associate the data with. Each record has metadata showing this value
 	MessageBucketName string // the bucket to use for large messages
@@ -57,7 +58,8 @@ func LoadConfiguration() *ServiceConfig {
 	var cfg ServiceConfig
 
 	cfg.InQueueName = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_IN_QUEUE")
-	cfg.OutQueueName = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_OUT_QUEUE")
+	cfg.OutQueue1Name = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_OUT_QUEUE_1")
+	cfg.OutQueue2Name = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_OUT_QUEUE_2")
 	cfg.PollTimeOut = int64(envToInt("VIRGO4_MARC_INGEST_QUEUE_POLL_TIMEOUT"))
 	cfg.DataSourceName = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_DATA_SOURCE")
 	cfg.MessageBucketName = ensureSetAndNonEmpty("VIRGO4_SQS_MESSAGE_BUCKET")
@@ -66,7 +68,8 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.Workers = envToInt("VIRGO4_MARC_INGEST_WORKERS")
 
 	log.Printf("[CONFIG] InQueueName          = [%s]", cfg.InQueueName)
-	log.Printf("[CONFIG] OutQueueName         = [%s]", cfg.OutQueueName)
+	log.Printf("[CONFIG] OutQueue1Name        = [%s]", cfg.OutQueue1Name)
+	log.Printf("[CONFIG] OutQueue2Name        = [%s]", cfg.OutQueue2Name)
 	log.Printf("[CONFIG] PollTimeOut          = [%d]", cfg.PollTimeOut)
 	log.Printf("[CONFIG] DataSourceName       = [%s]", cfg.DataSourceName)
 	log.Printf("[CONFIG] MessageBucketName    = [%s]", cfg.MessageBucketName)

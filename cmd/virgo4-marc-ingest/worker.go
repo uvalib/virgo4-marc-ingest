@@ -10,7 +10,7 @@ import (
 // time to wait before flushing pending records
 var flushTimeout = 5 * time.Second
 
-func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records <-chan MarcRecord) {
+func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records <-chan MarcRecord) {
 
 	count := uint(1)
 	block := make([]MarcRecord, 0, awssqs.MAX_SQS_BLOCK_COUNT)
@@ -37,7 +37,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.Queue
 			if count%awssqs.MAX_SQS_BLOCK_COUNT == 0 {
 
 				// send the block
-				err := sendOutboundMessages(config, aws, queue, block)
+				err := sendOutboundMessages(config, aws, outQueue1, outQueue2, block)
 				fatalIfError(err)
 
 				// reset the block
@@ -54,7 +54,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.Queue
 			if len(block) != 0 {
 
 				// send the block
-				err := sendOutboundMessages(config, aws, queue, block)
+				err := sendOutboundMessages(config, aws, outQueue1, outQueue2, block)
 				fatalIfError(err)
 
 				// reset the block
@@ -71,7 +71,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.Queue
 	// should never get here
 }
 
-func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, records []MarcRecord) error {
+func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records []MarcRecord) error {
 
 	count := len(records)
 	if count == 0 {
@@ -82,39 +82,38 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		batch = append(batch, constructMessage(m, config.DataSourceName))
 	}
 
-	opStatus, err := aws.BatchMessagePut(queue, batch)
+	opStatus1, err := aws.BatchMessagePut(outQueue1, batch)
 	if err != nil {
 		if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
 			return err
 		}
 	}
 
-	// if one or more message failed to send, retry...
+	// if one or more message failed...
 	if err == awssqs.OneOrMoreOperationsUnsuccessfulError {
-		retryMessages := make([]awssqs.Message, 0, count)
 
 		// check the operation results
-		for ix, op := range opStatus {
+		for ix, op := range opStatus1 {
 			if op == false {
-				log.Printf("WARNING: message %d failed to send to queue, retrying", ix)
-				retryMessages = append(retryMessages, batch[ix])
+				log.Printf("WARNING: message %d failed to send to outQueue1", ix)
 			}
 		}
+	}
 
-		// attempt another send of the ones that failed last time
-		opStatus, err = aws.BatchMessagePut(queue, retryMessages)
-		if err != nil {
-			if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
-				return err
-			}
+	opStatus2, err := aws.BatchMessagePut(outQueue2, batch)
+	if err != nil {
+		if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+			return err
 		}
+	}
 
-		// did we fail again
-		if err == awssqs.OneOrMoreOperationsUnsuccessfulError {
-			for ix, op := range opStatus {
-				if op == false {
-					log.Printf("ERROR: message %d failed to send to queue, giving up", ix)
-				}
+	// if one or more message failed...
+	if err == awssqs.OneOrMoreOperationsUnsuccessfulError {
+
+		// check the operation results
+		for ix, op := range opStatus2 {
+			if op == false {
+				log.Printf("WARNING: message %d failed to send to outQueue2", ix)
 			}
 		}
 	}
