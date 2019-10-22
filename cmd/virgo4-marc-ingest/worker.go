@@ -124,10 +124,11 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 func constructMessage(record MarcRecord, source string) awssqs.Message {
 
 	id, _ := record.Id()
-	attributes := make([]awssqs.Attribute, 0, 3)
-	attributes = append(attributes, awssqs.Attribute{Name: "id", Value: id})
-	attributes = append(attributes, awssqs.Attribute{Name: "type", Value: "base64/marc"})
-	attributes = append(attributes, awssqs.Attribute{Name: "source", Value: source})
+	attributes := make([]awssqs.Attribute, 0, 4)
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordId, Value: id})
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordType, Value: awssqs.AttributeValueRecordTypeB64Marc})
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordSource, Value: source})
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordOperation, Value: awssqs.AttributeValueRecordOperationUpdate})
 	return awssqs.Message{Attribs: attributes, Payload: []byte(base64.StdEncoding.EncodeToString(record.Raw()))}
 }
 
