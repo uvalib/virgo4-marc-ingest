@@ -12,7 +12,7 @@ var flushTimeout = 5 * time.Second
 
 func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records <-chan MarcRecord) {
 
-	count := uint(1)
+	count := uint(0)
 	block := make([]MarcRecord, 0, awssqs.MAX_SQS_BLOCK_COUNT)
 	var record MarcRecord
 	for {
@@ -34,7 +34,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 			block = append(block, record)
 
 			// have we reached a block size limit
-			if count%awssqs.MAX_SQS_BLOCK_COUNT == 0 {
+			if count != 0 && count%awssqs.MAX_SQS_BLOCK_COUNT == 0 {
 
 				// send the block
 				err := sendOutboundMessages(config, aws, outQueue1, outQueue2, block)
@@ -72,7 +72,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 			}
 
 			// reset the count
-			count = 1
+			count = 0
 		}
 	}
 
