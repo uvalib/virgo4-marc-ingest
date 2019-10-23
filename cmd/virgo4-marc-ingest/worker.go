@@ -82,15 +82,15 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 		batch = append(batch, constructMessage(m, config.DataSourceName))
 	}
 
-	opStatus1, err := aws.BatchMessagePut(outQueue1, batch)
-	if err != nil {
-		if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
-			return err
+	opStatus1, err1 := aws.BatchMessagePut(outQueue1, batch)
+	if err1 != nil {
+		if err1 != awssqs.OneOrMoreOperationsUnsuccessfulError {
+			return err1
 		}
 	}
 
 	// if one or more message failed...
-	if err == awssqs.OneOrMoreOperationsUnsuccessfulError {
+	if err1 == awssqs.OneOrMoreOperationsUnsuccessfulError {
 
 		// check the operation results
 		for ix, op := range opStatus1 {
@@ -100,15 +100,15 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 		}
 	}
 
-	opStatus2, err := aws.BatchMessagePut(outQueue2, batch)
-	if err != nil {
-		if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
-			return err
+	opStatus2, err2 := aws.BatchMessagePut(outQueue2, batch)
+	if err2 != nil {
+		if err2 != awssqs.OneOrMoreOperationsUnsuccessfulError {
+			return err2
 		}
 	}
 
 	// if one or more message failed...
-	if err == awssqs.OneOrMoreOperationsUnsuccessfulError {
+	if err2 == awssqs.OneOrMoreOperationsUnsuccessfulError {
 
 		// check the operation results
 		for ix, op := range opStatus2 {
@@ -116,6 +116,11 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 				log.Printf("WARNING: message %d failed to send to outQueue2", ix)
 			}
 		}
+	}
+
+	// report that some of the messages were not processed
+	if err1 == awssqs.OneOrMoreOperationsUnsuccessfulError || err2 == awssqs.OneOrMoreOperationsUnsuccessfulError {
+		return awssqs.OneOrMoreOperationsUnsuccessfulError
 	}
 
 	return nil
