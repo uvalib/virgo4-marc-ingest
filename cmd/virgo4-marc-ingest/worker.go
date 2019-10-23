@@ -38,7 +38,11 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 
 				// send the block
 				err := sendOutboundMessages(config, aws, outQueue1, outQueue2, block)
-				fatalIfError(err)
+				if err != nil {
+					if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+						fatalIfError(err)
+					}
+				}
 
 				// reset the block
 				block = block[:0]
@@ -55,7 +59,11 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 
 				// send the block
 				err := sendOutboundMessages(config, aws, outQueue1, outQueue2, block)
-				fatalIfError(err)
+				if err != nil {
+					if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+						fatalIfError(err)
+					}
+				}
 
 				// reset the block
 				block = block[:0]
