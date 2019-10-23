@@ -46,16 +46,16 @@ func main() {
 
 	for {
 		// notification that there is one or more new ingest files to be processed
-		inbound, receiptHandle, err := getInboundNotification(*cfg, aws, inQueueHandle)
-		fatalIfError(err)
+		inbound, receiptHandle, e := getInboundNotification(*cfg, aws, inQueueHandle)
+		fatalIfError(e)
 
 		// download each file and validate it
 		localNames := make([]string, 0, len(inbound))
 		for ix, f := range inbound {
 
 			// download the file
-			localFile, err := s3download(cfg.DownloadDir, f.SourceBucket, f.SourceKey)
-			fatalIfError(err)
+			localFile, e := s3download(cfg.DownloadDir, f.SourceBucket, f.SourceKey)
+			fatalIfError(e)
 
 			// save the local name, we will need it later
 			localNames = append(localNames, localFile)
@@ -63,14 +63,15 @@ func main() {
 			log.Printf("Validating %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
 
 			// create a new loader
-			loader, err := NewMarcLoader(localNames[ix])
-			fatalIfError(err)
+			loader, e := NewMarcLoader(localNames[ix])
+			fatalIfError(e)
 
 			// validate the file
-			err = loader.Validate()
+			e = loader.Validate()
 			loader.Done()
-			if err != nil {
-				log.Printf("ERROR: %s/%s (%s) appears to be invalid, ignoring it", f.SourceBucket, f.SourceKey, localNames[ix])
+			if e != nil {
+				log.Printf("ERROR: %s/%s (%s) appears to be invalid, ignoring it (%s)", f.SourceBucket, f.SourceKey, localNames[ix], e.Error())
+				err = e
 				break
 			}
 		}
