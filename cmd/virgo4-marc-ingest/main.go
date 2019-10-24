@@ -9,9 +9,6 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-// FIXME
-var doIngest = true
-
 //
 // main entry point
 //
@@ -93,7 +90,11 @@ func main() {
 		delMessages := make([]awssqs.Message, 0, 1)
 		delMessages = append(delMessages, awssqs.Message{ReceiptHandle: receiptHandle})
 		opStatus, err := aws.BatchMessageDelete(inQueueHandle, delMessages)
-		fatalIfError(err)
+		if err != nil {
+			if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+				fatalIfError(err)
+			}
+		}
 
 		// check the operation results
 		for ix, op := range opStatus {
@@ -131,10 +132,7 @@ func main() {
 			if err == nil {
 				for {
 					count++
-					// FIXME
-					if doIngest == true {
-						marcRecordsChan <- rec
-					}
+					marcRecordsChan <- rec
 
 					rec, err = loader.Next(true)
 					if err != nil {
