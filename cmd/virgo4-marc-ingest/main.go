@@ -54,7 +54,7 @@ func main() {
 		for ix, f := range inbound {
 
 			// download the file
-			localFile, e := s3download(cfg.DownloadDir, f.SourceBucket, f.SourceKey)
+			localFile, e := s3download(cfg.DownloadDir, f.SourceBucket, f.SourceKey, f.ObjectSize)
 			fatalIfError(e)
 
 			// save the local name, we will need it later

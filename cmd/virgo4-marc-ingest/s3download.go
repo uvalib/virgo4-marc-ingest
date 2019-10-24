@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -25,7 +26,7 @@ func init() {
 
 // taken from https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/go/example_code/s3/s3_download_object.go
 
-func s3download(downloadDir string, bucket string, object string) (string, error) {
+func s3download(downloadDir string, bucket string, object string, expectedSize int64) (string, error) {
 
 	file, err := ioutil.TempFile(downloadDir, "")
 	if err != nil {
@@ -37,7 +38,7 @@ func s3download(downloadDir string, bucket string, object string) (string, error
 	log.Printf("Downloading %s to %s", sourcename, file.Name())
 
 	start := time.Now()
-	_, err = downloader.Download(file,
+	fileSize, err := downloader.Download(file,
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(object),
@@ -47,8 +48,17 @@ func s3download(downloadDir string, bucket string, object string) (string, error
 		return "", err
 	}
 
+	// I think there are times when the download runs out of space but it is not reported as an error so
+	// we validate the expected file size against the actually downloaded size
+	if expectedSize != fileSize {
+
+		// remove the file
+		_ = os.Remove(file.Name())
+		return "", fmt.Errorf("download failure. expected %d bytes, received %d bytes", expectedSize, fileSize)
+	}
+
 	duration := time.Since(start)
-	log.Printf("Download of %s complete in %0.2f seconds", sourcename, duration.Seconds())
+	log.Printf("Download of %s complete in %0.2f seconds (%d bytes)", sourcename, duration.Seconds(), fileSize)
 	return file.Name(), nil
 }
 
