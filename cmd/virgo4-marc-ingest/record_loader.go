@@ -75,6 +75,7 @@ func (l *recordLoaderImpl) Validate() error {
 			log.Printf("WARNING: EOF on first read, looks like an empty file")
 			return nil
 		} else {
+			log.Printf("ERROR: validation failure on record index 0" )
 			return err
 		}
 	}
