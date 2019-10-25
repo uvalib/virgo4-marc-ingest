@@ -75,7 +75,7 @@ func (l *recordLoaderImpl) Validate() error {
 			log.Printf("WARNING: EOF on first read, looks like an empty file")
 			return nil
 		} else {
-			log.Printf("ERROR: validation failure on record index 0" )
+			log.Printf("ERROR: validation failure on record index 0")
 			return err
 		}
 	}
@@ -170,8 +170,15 @@ func (l *recordLoaderImpl) Next(readAhead bool) (Record, error) {
 
 			// the id's match so we should append the contents of the next record onto the contents of the previous record
 			// and repeat the process
-			log.Printf("INFO: identified additional marc record for %s, appending it", id)
-			copy(rec.Raw(), nextRec.Raw())
+			impl, ok := rec.(*recordImpl)
+			if ok == true {
+				log.Printf("INFO: identified additional marc record for %s, appending it", id)
+				impl.RawBytes = append(rec.Raw(), nextRec.Raw()...)
+			} else {
+				log.Printf("ERROR: unable to append MARC additional record")
+				_, _ = l.File.Seek(currentPos, 0)
+				return rec, nil
+			}
 		}
 	}
 
