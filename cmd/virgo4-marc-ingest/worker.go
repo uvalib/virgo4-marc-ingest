@@ -10,11 +10,11 @@ import (
 // time to wait before flushing pending records
 var flushTimeout = 5 * time.Second
 
-func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records <-chan MarcRecord) {
+func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records <-chan Record) {
 
 	count := uint(0)
-	block := make([]MarcRecord, 0, awssqs.MAX_SQS_BLOCK_COUNT)
-	var record MarcRecord
+	block := make([]Record, 0, awssqs.MAX_SQS_BLOCK_COUNT)
+	var record Record
 	for {
 
 		timeout := false
@@ -79,7 +79,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 	// should never get here
 }
 
-func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records []MarcRecord) error {
+func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records []Record) error {
 
 	count := len(records)
 	if count == 0 {
@@ -134,7 +134,7 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 	return nil
 }
 
-func constructMessage(record MarcRecord, source string) awssqs.Message {
+func constructMessage(record Record, source string) awssqs.Message {
 
 	id, _ := record.Id()
 	attributes := make([]awssqs.Attribute, 0, 4)

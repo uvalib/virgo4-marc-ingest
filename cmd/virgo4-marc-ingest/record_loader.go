@@ -9,32 +9,32 @@ import (
 )
 
 //var BadFileFormatError = fmt.Errorf( "Unrecognized file format" )
-var BadMarcRecordError = fmt.Errorf("Bad MARC record encountered")
+var BadRecordError = fmt.Errorf("Bad MARC record encountered")
 var BadRecordIdError = fmt.Errorf("Bad MARC record identifier")
 var FileNotOpenError = fmt.Errorf("File is not open")
 
-// the MarcLoader interface
-type MarcLoader interface {
+// the RecordLoader interface
+type RecordLoader interface {
 	Validate() error
-	First(bool) (MarcRecord, error)
-	Next(bool) (MarcRecord, error)
+	First(bool) (Record, error)
+	Next(bool) (Record, error)
 	Done()
 }
 
 // the Marc record interface
-type MarcRecord interface {
+type Record interface {
 	Id() (string, error)
 	Raw() []byte
 }
 
 // this is our loader implementation
-type marcLoaderImpl struct {
+type recordLoaderImpl struct {
 	File       *os.File
 	HeaderBuff []byte
 }
 
 // this is our record implementation
-type marcRecordImpl struct {
+type recordImpl struct {
 	RawBytes []byte
 	marcId   string
 }
@@ -49,7 +49,7 @@ var fieldTerminator = byte(0x1e)
 var recordTerminator = byte(0x1d)
 
 // and the factory
-func NewMarcLoader(filename string) (MarcLoader, error) {
+func NewRecordLoader(filename string) (RecordLoader, error) {
 
 	file, err := os.Open(filename)
 	if err != nil {
@@ -57,11 +57,11 @@ func NewMarcLoader(filename string) (MarcLoader, error) {
 	}
 
 	buf := make([]byte, marcRecordHeaderSize)
-	return &marcLoaderImpl{File: file, HeaderBuff: buf}, nil
+	return &recordLoaderImpl{File: file, HeaderBuff: buf}, nil
 }
 
 // read all the records to ensure the file is valid
-func (l *marcLoaderImpl) Validate() error {
+func (l *recordLoaderImpl) Validate() error {
 
 	if l.File == nil {
 		return FileNotOpenError
@@ -79,6 +79,9 @@ func (l *marcLoaderImpl) Validate() error {
 		}
 	}
 
+	// used for reporting
+	recordIndex := 1
+
 	// read all the records and bail on the first failure except EOF
 	for {
 		_, err = l.Next(false)
@@ -88,16 +91,18 @@ func (l *marcLoaderImpl) Validate() error {
 			if err == io.EOF {
 				break
 			} else {
+				log.Printf("ERROR: validation failure on record index %d", recordIndex)
 				return err
 			}
 		}
+		recordIndex++
 	}
 
 	// everything is OK
 	return nil
 }
 
-func (l *marcLoaderImpl) First(readAhead bool) (MarcRecord, error) {
+func (l *recordLoaderImpl) First(readAhead bool) (Record, error) {
 
 	if l.File == nil {
 		return nil, FileNotOpenError
@@ -112,7 +117,7 @@ func (l *marcLoaderImpl) First(readAhead bool) (MarcRecord, error) {
 	return l.Next(readAhead)
 }
 
-func (l *marcLoaderImpl) Next(readAhead bool) (MarcRecord, error) {
+func (l *recordLoaderImpl) Next(readAhead bool) (Record, error) {
 
 	if l.File == nil {
 		return nil, FileNotOpenError
@@ -164,7 +169,7 @@ func (l *marcLoaderImpl) Next(readAhead bool) (MarcRecord, error) {
 
 			// the id's match so we should append the contents of the next record onto the contents of the previous record
 			// and repeat the process
-			log.Printf("WARNING: identified additional marc record for %s, appending it", id)
+			log.Printf("INFO: identified additional marc record for %s, appending it", id)
 			copy(rec.Raw(), nextRec.Raw())
 		}
 	}
@@ -172,7 +177,7 @@ func (l *marcLoaderImpl) Next(readAhead bool) (MarcRecord, error) {
 	return rec, nil
 }
 
-func (l *marcLoaderImpl) Done() {
+func (l *recordLoaderImpl) Done() {
 
 	if l.File != nil {
 		l.File.Close()
@@ -180,7 +185,7 @@ func (l *marcLoaderImpl) Done() {
 	}
 }
 
-func (l *marcLoaderImpl) rawMarcRead() (MarcRecord, error) {
+func (l *recordLoaderImpl) rawMarcRead() (Record, error) {
 
 	// read the 5 byte length header
 	_, err := l.File.Read(l.HeaderBuff)
@@ -197,7 +202,7 @@ func (l *marcLoaderImpl) rawMarcRead() (MarcRecord, error) {
 	// ensure the number is sane
 	if length <= marcRecordHeaderSize {
 		log.Printf("ERROR: marc record prefix invalid (%s)", string(l.HeaderBuff))
-		return nil, BadMarcRecordError
+		return nil, BadRecordError
 	}
 
 	// we need to include the header in the raw record so move back so we read it again
@@ -220,7 +225,7 @@ func (l *marcLoaderImpl) rawMarcRead() (MarcRecord, error) {
 
 	// verify the end of record marker exists and return success if it does
 	if readBuf[length-2] == fieldTerminator && readBuf[length-1] == recordTerminator {
-		return &marcRecordImpl{RawBytes: readBuf}, nil
+		return &recordImpl{RawBytes: readBuf}, nil
 	}
 
 	// we will assume that the MARC header specified a larger value than necessary so we can track back to see if the
@@ -228,10 +233,10 @@ func (l *marcLoaderImpl) rawMarcRead() (MarcRecord, error) {
 	log.Printf("WARNING: unexpected marc record suffix (%x %x)", readBuf[length-2], readBuf[length-1])
 
 	log.Printf("FIXME: %s", string(readBuf))
-	return nil, BadMarcRecordError
+	return nil, BadRecordError
 }
 
-func (r *marcRecordImpl) Id() (string, error) {
+func (r *recordImpl) Id() (string, error) {
 
 	if r.marcId != "" {
 		return r.marcId, nil
@@ -240,11 +245,11 @@ func (r *marcRecordImpl) Id() (string, error) {
 	return r.extractId()
 }
 
-func (r *marcRecordImpl) Raw() []byte {
+func (r *recordImpl) Raw() []byte {
 	return r.RawBytes
 }
 
-func (r *marcRecordImpl) extractId() (string, error) {
+func (r *recordImpl) extractId() (string, error) {
 
 	id, err := r.getMarcFieldId("001")
 	if err != nil {
@@ -278,13 +283,13 @@ func (r *marcRecordImpl) extractId() (string, error) {
 // The actual field values begin after the end of the directory.
 //
 
-func (r *marcRecordImpl) getMarcFieldId(fieldId string) (string, error) {
+func (r *recordImpl) getMarcFieldId(fieldId string) (string, error) {
 
 	currentOffset := marcRecordFieldDirStart
 	endOfDir, err := strconv.Atoi(string(r.RawBytes[12:17]))
 	if err != nil {
 		log.Printf("ERROR: marc record end of directory offset invalid (%s)", string(r.RawBytes[12:17]))
-		return "", BadMarcRecordError
+		return "", BadRecordError
 	}
 
 	// make sure we are actually pointing where we expect
@@ -300,13 +305,13 @@ func (r *marcRecordImpl) getMarcFieldId(fieldId string) (string, error) {
 		fieldLength, err := strconv.Atoi(next)
 		if err != nil {
 			log.Printf("ERROR: marc record field length invalid (%s)", next)
-			return "", BadMarcRecordError
+			return "", BadRecordError
 		}
 		next = string(dirEntry[7:12])
 		fieldOffset, err := strconv.Atoi(next)
 		if err != nil {
 			log.Printf("ERROR: marc record field offset invalid (%s)", next)
-			return "", BadMarcRecordError
+			return "", BadRecordError
 		}
 
 		//log.Printf( "Found field number %s. Offset %d, Length %d", fieldNumber, fieldOffset, fieldLength )
@@ -318,7 +323,7 @@ func (r *marcRecordImpl) getMarcFieldId(fieldId string) (string, error) {
 	}
 
 	log.Printf("ERROR: could not locate field %s in marc record", fieldId)
-	return "", BadMarcRecordError
+	return "", BadRecordError
 }
 
 //

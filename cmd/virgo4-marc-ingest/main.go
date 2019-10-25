@@ -34,7 +34,7 @@ func main() {
 	fatalIfError(err)
 
 	// create the record channel
-	marcRecordsChan := make(chan MarcRecord, cfg.WorkerQueueSize)
+	marcRecordsChan := make(chan Record, cfg.WorkerQueueSize)
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
@@ -60,7 +60,7 @@ func main() {
 			log.Printf("Validating %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
 
 			// create a new loader
-			loader, e := NewMarcLoader(localNames[ix])
+			loader, e := NewRecordLoader(localNames[ix])
 			fatalIfError(e)
 
 			// validate the file
@@ -109,7 +109,7 @@ func main() {
 			start := time.Now()
 			log.Printf("Processing %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
 
-			loader, err := NewMarcLoader(localNames[ix])
+			loader, err := NewRecordLoader(localNames[ix])
 			// fatal fail here because we have already validated the file and believe it to be correct so this
 			// is some other sort of failure
 			fatalIfError(err)
