@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"log"
 	"time"
@@ -85,12 +86,21 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 	if count == 0 {
 		return nil
 	}
-	batch := make([]awssqs.Message, 0, count)
+
+	//
+	// we use copies of the messages for each queue because we want to ensure that new S3 objects are created
+	// if not, we have multiple messages that share an external S3 object
+	//
+
+	batch1 := make([]awssqs.Message, 0, count)
+	batch2 := make([]awssqs.Message, 0, count)
 	for _, m := range records {
-		batch = append(batch, constructMessage(m, config.DataSourceName))
+		msg := constructMessage(m, config.DataSourceName)
+		batch1 = append(batch1, msg)
+		batch2 = append(batch2, msg)
 	}
 
-	opStatus1, err1 := aws.BatchMessagePut(outQueue1, batch)
+	opStatus1, err1 := aws.BatchMessagePut(outQueue1, batch1)
 	if err1 != nil {
 		if err1 != awssqs.OneOrMoreOperationsUnsuccessfulError {
 			return err1
@@ -108,7 +118,7 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 		}
 	}
 
-	opStatus2, err2 := aws.BatchMessagePut(outQueue2, batch)
+	opStatus2, err2 := aws.BatchMessagePut(outQueue2, batch2)
 	if err2 != nil {
 		if err2 != awssqs.OneOrMoreOperationsUnsuccessfulError {
 			return err2
