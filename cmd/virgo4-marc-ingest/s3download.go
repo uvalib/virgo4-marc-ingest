@@ -35,7 +35,7 @@ func s3download(downloadDir string, bucket string, object string, expectedSize i
 	defer file.Close()
 
 	sourcename := fmt.Sprintf("s3:/%s/%s", bucket, object)
-	log.Printf("Downloading %s to %s", sourcename, file.Name())
+	log.Printf("INFO: downloading %s to %s", sourcename, file.Name())
 
 	start := time.Now()
 	fileSize, err := downloader.Download(file,
@@ -58,7 +58,7 @@ func s3download(downloadDir string, bucket string, object string, expectedSize i
 	}
 
 	duration := time.Since(start)
-	log.Printf("Download of %s complete in %0.2f seconds (%d bytes)", sourcename, duration.Seconds(), fileSize)
+	log.Printf("INFO: download of %s complete in %0.2f seconds (%d bytes, %0.2f bytes/sec)", sourcename, duration.Seconds(), fileSize, float64(fileSize)/duration.Seconds())
 	return file.Name(), nil
 }
 

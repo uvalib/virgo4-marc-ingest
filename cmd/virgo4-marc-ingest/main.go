@@ -57,7 +57,7 @@ func main() {
 			// save the local name, we will need it later
 			localNames = append(localNames, localFile)
 
-			log.Printf("Validating %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
+			log.Printf("INFO: validating %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
 
 			// create a new loader
 			loader, e := NewRecordLoader(localNames[ix])
@@ -66,7 +66,9 @@ func main() {
 			// validate the file
 			e = loader.Validate()
 			loader.Done()
-			if e != nil {
+			if e == nil {
+				log.Printf("INFO: %s/%s (%s) appears to be OK, ready for ingest", f.SourceBucket, f.SourceKey, localNames[ix])
+			} else {
 				log.Printf("ERROR: %s/%s (%s) appears to be invalid, ignoring it (%s)", f.SourceBucket, f.SourceKey, localNames[ix], e.Error())
 				err = e
 				break
@@ -107,7 +109,7 @@ func main() {
 		for ix, f := range inbound {
 
 			start := time.Now()
-			log.Printf("Processing %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
+			log.Printf("INFO: processing %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
 
 			loader, err := NewRecordLoader(localNames[ix])
 			// fatal fail here because we have already validated the file and believe it to be correct so this
@@ -149,7 +151,7 @@ func main() {
 
 			loader.Done()
 			duration := time.Since(start)
-			log.Printf("Done processing %s/%s (%s). %d records (%0.2f tps)", f.SourceBucket, f.SourceKey, localNames[ix], count, float64(count)/duration.Seconds())
+			log.Printf("INFO: done processing %s/%s (%s). %d records (%0.2f tps)", f.SourceBucket, f.SourceKey, localNames[ix], count, float64(count)/duration.Seconds())
 
 			// file has been ingested, remove it
 			err = os.Remove(localNames[ix])

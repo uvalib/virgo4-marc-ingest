@@ -50,7 +50,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 			count++
 
 			if count%1000 == 0 {
-				log.Printf("Worker %d processed %d records", id, count)
+				log.Printf("INFO: worker %d processed %d records", id, count)
 			}
 		} else {
 
@@ -68,7 +68,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 				// reset the block
 				block = block[:0]
 
-				log.Printf("Worker %d processed %d records (flushing)", id, count)
+				log.Printf("INFO: worker %d processed %d records (flushing)", id, count)
 			}
 
 			// reset the count

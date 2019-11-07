@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -38,6 +39,15 @@ type recordImpl struct {
 	RawBytes []byte
 	marcId   string
 }
+
+//
+// This implementation based on the MARC reader code here:
+//
+// https://github.com/marc4j/marc4j/blob/master/src/org/marc4j/util/RawRecord.java
+// https://github.com/marc4j/marc4j/blob/master/src/org/marc4j/util/RawRecordReader.java
+//
+// All errors in the implementation are mine :)
+//
 
 // the size of the MARC record header
 var marcRecordHeaderSize = 5
@@ -236,11 +246,46 @@ func (l *recordLoaderImpl) rawMarcRead() (Record, error) {
 		return &recordImpl{RawBytes: readBuf}, nil
 	}
 
-	// we will assume that the MARC header specified a larger value than necessary so we can track back to see if the
-	// end of record marker comes earlier with the remaining bytes
-	log.Printf("WARNING: unexpected marc record suffix (%x %x)", readBuf[length-2], readBuf[length-1])
+	log.Printf("WARNING: unexpected marc record suffix. Expected (%x %x) got (%x %x). Header length reports %d", fieldTerminator, recordTerminator, readBuf[length-2], readBuf[length-1], length)
 
-	log.Printf("FIXME: %s", string(readBuf))
+	//
+	// we have a badly formed record, look to see if the terminator appears earlier in the record (in bytes we have already read)
+	//
+
+	tag := []byte{fieldTerminator, recordTerminator}
+	foundIx := bytes.Index(readBuf, tag)
+	if foundIx != -1 {
+		log.Printf("WARNING: located record terminator earlier in the buffer at offset %d", foundIx)
+		// FIXME: we need to reset the file pointer
+		log.Printf("ERROR: WE HAVE NOT RESET THE FILE POINTER, SUBSEQUENT READS WILL BE BAD")
+		return &recordImpl{RawBytes: readBuf[0:foundIx]}, nil
+	}
+
+	//
+	// we did not find the record terminator in the buffer we have already read,
+	// now look to see if it appears later (because this is a record larger than 5 digits)
+	// hate how Hathi does this, should probably follow the Sirsi model instead
+	//
+
+	additionalBuffer := make([]byte, 0, 128*1024)
+	for {
+		b := make([]byte, 1)
+		_, err = l.File.Read(b)
+		if err != nil {
+			log.Printf("ERROR: reading forward for record terminator, giving up (%s)", err.Error())
+			break
+		}
+
+		additionalBuffer = append(additionalBuffer, b...)
+
+		// did we find the record terminator
+		if b[0] == recordTerminator {
+			log.Printf("WARNING: record terminator located after an additional %d bytes", len(additionalBuffer))
+			return &recordImpl{RawBytes: append(readBuf, additionalBuffer...)}, nil
+		}
+	}
+
+	//log.Printf("FIXME: %s", string(readBuf))
 	return nil, BadRecordError
 }
 
@@ -269,10 +314,10 @@ func (r *recordImpl) extractId() (string, error) {
 	}
 
 	// ensure the first character of the Id us a 'u' character
-	if id[0] != 'u' {
-		log.Printf("ERROR: marc record id is suspect (%s)", id)
-		return "", BadRecordIdError
-	}
+	//if id[0] != 'u' {
+	//	log.Printf("ERROR: marc record id is suspect (%s)", id)
+	//	return "", BadRecordIdError
+	//}
 
 	r.marcId = id
 
@@ -302,7 +347,15 @@ func (r *recordImpl) getMarcFieldId(fieldId string) (string, error) {
 
 	// make sure we are actually pointing where we expect
 	if endOfDir == 99999 || r.RawBytes[endOfDir-1 : endOfDir][0] != fieldTerminator {
-		log.Printf("BEEP BOOP special case...")
+		tag := []byte{fieldTerminator}
+		foundIx := bytes.Index(r.RawBytes, tag)
+		if foundIx == -1 {
+			log.Printf("ERROR: cannot locate end of directory marker")
+			return "", BadRecordError
+		}
+		foundIx++
+		log.Printf("INFO: resetting directory terminator. was %d, now %d", endOfDir, foundIx)
+		endOfDir = foundIx
 	}
 
 	for currentOffset < endOfDir {
