@@ -36,4 +36,4 @@ vet:
 
 check:
 	go get honnef.co/go/tools/cmd/staticcheck
-	~/go/bin/staticcheck -checks -S1002 cmd/$(PACKAGENAME)/*.go
+	~/go/bin/staticcheck -checks all,-S1002,-ST1003 cmd/$(PACKAGENAME)/*.go
