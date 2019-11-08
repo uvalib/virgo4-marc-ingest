@@ -33,3 +33,7 @@ fmt:
 
 vet:
 	cd cmd/$(PACKAGENAME); $(GOVET)
+
+check:
+	go get honnef.co/go/tools/cmd/staticcheck
+	~/go/bin/staticcheck -checks -S1002 cmd/$(PACKAGENAME)/*.go
