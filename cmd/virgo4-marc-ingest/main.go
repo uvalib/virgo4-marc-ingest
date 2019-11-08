@@ -93,7 +93,7 @@ func main() {
 		delMessages = append(delMessages, awssqs.Message{ReceiptHandle: receiptHandle})
 		opStatus, err := aws.BatchMessageDelete(inQueueHandle, delMessages)
 		if err != nil {
-			if err != awssqs.OneOrMoreOperationsUnsuccessfulError {
+			if err != awssqs.ErrOneOrMoreOperationsUnsuccessful {
 				fatalIfError(err)
 			}
 		}
