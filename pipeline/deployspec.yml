@@ -24,7 +24,10 @@ phases:
 
   build:
     commands:
-      - cd $CODEBUILD_SRC_DIR/terraform-infrastructure/virgo4.lib.virginia.edu/ecs-tasks/staging/virgo4-marc-ingest
+      - cd $CODEBUILD_SRC_DIR/terraform-infrastructure/virgo4.lib.virginia.edu/ecs-tasks/staging/virgo4-hathi-marc-ingest
+      - terraform init
+      - terraform apply -auto-approve -var container_tag=$latest_build
+      - cd $CODEBUILD_SRC_DIR/terraform-infrastructure/virgo4.lib.virginia.edu/ecs-tasks/staging/virgo4-sirsi-marc-ingest
       - terraform init
       - terraform apply -auto-approve -var container_tag=$latest_build
 
