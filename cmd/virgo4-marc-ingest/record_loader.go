@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 //var ErrBadFileFormat = fmt.Errorf( "unrecognized file format" )
@@ -65,17 +66,38 @@ var fieldTerminator = byte(0x1e)
 var recordTerminator = byte(0x1d)
 
 // and the factory
-func NewRecordLoader(filename string) (RecordLoader, error) {
+func NewRecordLoader(remoteName string, localName string) (RecordLoader, error) {
 
-	file, err := os.Open(filename)
+	file, err := os.Open(localName)
 	if err != nil {
 		return nil, err
 	}
 
-	// FIXME: add this later
-	source := "FIXME"
+	source := getDataSource(remoteName)
 	buf := make([]byte, marcRecordHeaderSize)
 	return &recordLoaderImpl{File: file, DataSource: source, HeaderBuff: buf}, nil
+}
+
+func getDataSource(name string) string {
+
+	//
+	// we have a convention for names which can be used to identify a data source
+	// typically is is:
+	//    /dir-name/source-name/year/file
+	//
+	// so if we split the file by file separator and get 4 tokens, we can assume that
+	// token number 2 is the data source.
+	//
+	// in the event that we cannot, just put "unknown"
+	//
+
+	source := "unknown"
+	tokens := strings.Split(name, "/")
+	if len(tokens) == 4 {
+		source = tokens[1]
+	}
+	log.Printf("INFO: data source identified is: %s", source)
+	return source
 }
 
 // read all the records to ensure the file is valid

@@ -63,7 +63,7 @@ func main() {
 			log.Printf("INFO: validating %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
 
 			// create a new loader
-			loader, e := NewRecordLoader(localNames[ix])
+			loader, e := NewRecordLoader(f.SourceKey, localNames[ix])
 			fatalIfError(e)
 
 			// validate the file
@@ -114,7 +114,7 @@ func main() {
 			start := time.Now()
 			log.Printf("INFO: processing %s/%s (%s)", f.SourceBucket, f.SourceKey, localNames[ix])
 
-			loader, err := NewRecordLoader(localNames[ix])
+			loader, err := NewRecordLoader(f.SourceKey, localNames[ix])
 			// fatal fail here because we have already validated the file and believe it to be correct so this
 			// is some other sort of failure
 			fatalIfError(err)
