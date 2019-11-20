@@ -23,6 +23,9 @@ phases:
 
   build:
     commands:
+      - cd $CODEBUILD_SRC_DIR/terraform-infrastructure/virgo4.lib.virginia.edu/ecs-tasks/staging/virgo4-dynamic-marc-ingest
+      - terraform init
+      - terraform apply -auto-approve
       - cd $CODEBUILD_SRC_DIR/terraform-infrastructure/virgo4.lib.virginia.edu/ecs-tasks/staging/virgo4-hathi-marc-ingest
       - terraform init
       - terraform apply -auto-approve
