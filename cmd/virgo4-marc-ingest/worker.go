@@ -10,7 +10,7 @@ import (
 // time to wait before flushing pending records
 var flushTimeout = 5 * time.Second
 
-func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records <-chan Record) {
+func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue awssqs.QueueHandle, cacheQueue awssqs.QueueHandle, records <-chan Record) {
 
 	count := uint(0)
 	block := make([]Record, 0, awssqs.MAX_SQS_BLOCK_COUNT)
@@ -36,7 +36,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 			if count != 0 && count%awssqs.MAX_SQS_BLOCK_COUNT == awssqs.MAX_SQS_BLOCK_COUNT-1 {
 
 				// send the block
-				err := sendOutboundMessages(config, aws, outQueue1, outQueue2, block)
+				err := sendOutboundMessages(config, aws, outQueue, cacheQueue, block)
 				if err != nil {
 					if err != awssqs.ErrOneOrMoreOperationsUnsuccessful {
 						fatalIfError(err)
@@ -57,7 +57,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 			if len(block) != 0 {
 
 				// send the block
-				err := sendOutboundMessages(config, aws, outQueue1, outQueue2, block)
+				err := sendOutboundMessages(config, aws, outQueue, cacheQueue, block)
 				if err != nil {
 					if err != awssqs.ErrOneOrMoreOperationsUnsuccessful {
 						fatalIfError(err)
@@ -78,7 +78,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.Q
 	// should never get here
 }
 
-func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 awssqs.QueueHandle, outQueue2 awssqs.QueueHandle, records []Record) error {
+func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue awssqs.QueueHandle, cacheQueue awssqs.QueueHandle, records []Record) error {
 
 	count := len(records)
 	if count == 0 {
@@ -93,12 +93,12 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 	batch1 := make([]awssqs.Message, 0, count)
 	batch2 := make([]awssqs.Message, 0, count)
 	for _, m := range records {
-		msg := constructMessage(m, config.DataSourceName)
+		msg := constructMessage(m)
 		batch1 = append(batch1, msg)
 		batch2 = append(batch2, msg)
 	}
 
-	opStatus1, err1 := aws.BatchMessagePut(outQueue1, batch1)
+	opStatus1, err1 := aws.BatchMessagePut(outQueue, batch1)
 	if err1 != nil {
 		if err1 != awssqs.ErrOneOrMoreOperationsUnsuccessful {
 			return err1
@@ -111,44 +111,53 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue1 aw
 		// check the operation results
 		for ix, op := range opStatus1 {
 			if op == false {
-				log.Printf("WARNING: message %d failed to send to outQueue1", ix)
+				log.Printf("WARNING: message %d failed to send to outQueue", ix)
 			}
 		}
 	}
 
-	opStatus2, err2 := aws.BatchMessagePut(outQueue2, batch2)
-	if err2 != nil {
-		if err2 != awssqs.ErrOneOrMoreOperationsUnsuccessful {
-			return err2
-		}
-	}
+	// if we are configured to send items to the cache
+	if cacheQueue != "" {
 
-	// if one or more message failed...
-	if err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
-
-		// check the operation results
-		for ix, op := range opStatus2 {
-			if op == false {
-				log.Printf("WARNING: message %d failed to send to outQueue2", ix)
+		opStatus2, err2 := aws.BatchMessagePut(cacheQueue, batch2)
+		if err2 != nil {
+			if err2 != awssqs.ErrOneOrMoreOperationsUnsuccessful {
+				return err2
 			}
+		}
+
+		// if one or more message failed...
+		if err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
+
+			// check the operation results
+			for ix, op := range opStatus2 {
+				if op == false {
+					log.Printf("WARNING: message %d failed to send to cacheQueue", ix)
+				}
+			}
+		}
+
+		// report that some of the messages were not processed
+		if err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
+			return awssqs.ErrOneOrMoreOperationsUnsuccessful
 		}
 	}
 
 	// report that some of the messages were not processed
-	if err1 == awssqs.ErrOneOrMoreOperationsUnsuccessful || err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
+	if err1 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
 		return awssqs.ErrOneOrMoreOperationsUnsuccessful
 	}
 
 	return nil
 }
 
-func constructMessage(record Record, source string) awssqs.Message {
+func constructMessage(record Record) awssqs.Message {
 
 	id, _ := record.Id()
 	attributes := make([]awssqs.Attribute, 0, 4)
 	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordId, Value: id})
 	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordType, Value: awssqs.AttributeValueRecordTypeB64Marc})
-	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordSource, Value: source})
+	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordSource, Value: record.Source()})
 	attributes = append(attributes, awssqs.Attribute{Name: awssqs.AttributeKeyRecordOperation, Value: awssqs.AttributeValueRecordOperationUpdate})
 	return awssqs.Message{Attribs: attributes, Payload: []byte(base64.StdEncoding.EncodeToString(record.Raw()))}
 }

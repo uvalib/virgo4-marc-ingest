@@ -17,6 +17,7 @@ var ErrFileNotOpen = fmt.Errorf("file is not open")
 
 // the RecordLoader interface
 type RecordLoader interface {
+	Source() string
 	Validate() error
 	First(bool) (Record, error)
 	Next(bool) (Record, error)
@@ -26,19 +27,23 @@ type RecordLoader interface {
 // the Marc record interface
 type Record interface {
 	Id() (string, error)
+	Source() string
+	SetSource(string)
 	Raw() []byte
 }
 
 // this is our loader implementation
 type recordLoaderImpl struct {
-	File       *os.File
-	HeaderBuff []byte
+	DataSource string   // determined from the filename
+	File       *os.File // our file handle
+	HeaderBuff []byte   // buffer for the record header
 }
 
 // this is our record implementation
 type recordImpl struct {
-	RawBytes []byte
-	marcId   string
+	RawBytes []byte // the raw record
+	source   string // determined from the filename
+	marcId   string // extracted from the record
 }
 
 //
@@ -67,8 +72,10 @@ func NewRecordLoader(filename string) (RecordLoader, error) {
 		return nil, err
 	}
 
+	// FIXME: add this later
+	source := "FIXME"
 	buf := make([]byte, marcRecordHeaderSize)
-	return &recordLoaderImpl{File: file, HeaderBuff: buf}, nil
+	return &recordLoaderImpl{File: file, DataSource: source, HeaderBuff: buf}, nil
 }
 
 // read all the records to ensure the file is valid
@@ -204,6 +211,10 @@ func (l *recordLoaderImpl) Done() {
 	}
 }
 
+func (l *recordLoaderImpl) Source() string {
+	return l.DataSource
+}
+
 func (l *recordLoaderImpl) rawMarcRead() (Record, error) {
 
 	// read the 5 byte length header
@@ -244,7 +255,7 @@ func (l *recordLoaderImpl) rawMarcRead() (Record, error) {
 
 	// verify the end of record marker exists and return success if it does
 	if readBuf[length-2] == fieldTerminator && readBuf[length-1] == recordTerminator {
-		return &recordImpl{RawBytes: readBuf}, nil
+		return &recordImpl{RawBytes: readBuf, source: l.DataSource}, nil
 	}
 
 	log.Printf("WARNING: unexpected marc record suffix. Expected (%x %x) got (%x %x). Header length reports %d", fieldTerminator, recordTerminator, readBuf[length-2], readBuf[length-1], length)
@@ -259,7 +270,7 @@ func (l *recordLoaderImpl) rawMarcRead() (Record, error) {
 		log.Printf("WARNING: located record terminator earlier in the buffer at offset %d", foundIx)
 		// FIXME: we need to reset the file pointer
 		log.Printf("ERROR: WE HAVE NOT RESET THE FILE POINTER, SUBSEQUENT READS WILL BE BAD")
-		return &recordImpl{RawBytes: readBuf[0:foundIx]}, nil
+		return &recordImpl{RawBytes: readBuf[0:foundIx], source: l.DataSource}, nil
 	}
 
 	//
@@ -282,7 +293,7 @@ func (l *recordLoaderImpl) rawMarcRead() (Record, error) {
 		// did we find the record terminator
 		if b[0] == recordTerminator {
 			log.Printf("WARNING: record terminator located after an additional %d bytes", len(additionalBuffer))
-			return &recordImpl{RawBytes: append(readBuf, additionalBuffer...)}, nil
+			return &recordImpl{RawBytes: append(readBuf, additionalBuffer...), source: l.DataSource}, nil
 		}
 	}
 
@@ -301,6 +312,14 @@ func (r *recordImpl) Id() (string, error) {
 
 func (r *recordImpl) Raw() []byte {
 	return r.RawBytes
+}
+
+func (r *recordImpl) Source() string {
+	return r.source
+}
+
+func (r *recordImpl) SetSource(source string) {
+	r.source = source
 }
 
 func (r *recordImpl) extractId() (string, error) {
