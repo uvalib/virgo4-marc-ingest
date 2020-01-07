@@ -2,6 +2,8 @@
 # build the target application
 #
 FROM golang:1.13 as builder
+RUN apt-get -y update
+
 WORKDIR /build
 COPY go.mod go.sum Makefile ./
 COPY cmd ./cmd
