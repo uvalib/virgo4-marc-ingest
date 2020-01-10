@@ -37,11 +37,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue awssqs.Qu
 
 				// send the block
 				err := sendOutboundMessages(config, aws, outQueue, cacheQueue, block)
-				if err != nil {
-					if err != awssqs.ErrOneOrMoreOperationsUnsuccessful {
-						fatalIfError(err)
-					}
-				}
+				fatalIfError(err)
 
 				// reset the block
 				block = block[:0]
@@ -58,11 +54,7 @@ func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue awssqs.Qu
 
 				// send the block
 				err := sendOutboundMessages(config, aws, outQueue, cacheQueue, block)
-				if err != nil {
-					if err != awssqs.ErrOneOrMoreOperationsUnsuccessful {
-						fatalIfError(err)
-					}
-				}
+				fatalIfError(err)
 
 				// reset the block
 				block = block[:0]
@@ -100,19 +92,17 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue aws
 
 	opStatus1, err1 := aws.BatchMessagePut(outQueue, batch1)
 	if err1 != nil {
-		if err1 != awssqs.ErrOneOrMoreOperationsUnsuccessful {
-			return err1
+		// if an error we can handle, retry
+		if err1 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
+			log.Printf("WARNING: one or more items failed to send to the work queue, retrying...")
+
+			// retry the failed items and bail out if we cannot retry
+			err1 = retrySend(aws, outQueue, opStatus1, batch1)
 		}
-	}
 
-	// if one or more message failed...
-	if err1 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
-
-		// check the operation results
-		for ix, op := range opStatus1 {
-			if op == false {
-				log.Printf("WARNING: message %d failed to send to outQueue", ix)
-			}
+		// bail out if an error and let someone else handle it
+		if err1 != nil {
+			return err1
 		}
 	}
 
@@ -121,34 +111,66 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue aws
 
 		opStatus2, err2 := aws.BatchMessagePut(cacheQueue, batch2)
 		if err2 != nil {
-			if err2 != awssqs.ErrOneOrMoreOperationsUnsuccessful {
+			// if an error we can handle, retry
+			if err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
+				log.Printf("WARNING: one or more items failed to send to the cache queue, retrying...")
+				// retry the failed items and bail out if we cannot retry
+				err2 = retrySend(aws, cacheQueue, opStatus2, batch2)
+			}
+
+			// bail out if an error and let someone else handle it
+			if err2 != nil {
 				return err2
 			}
 		}
-
-		// if one or more message failed...
-		if err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
-
-			// check the operation results
-			for ix, op := range opStatus2 {
-				if op == false {
-					log.Printf("WARNING: message %d failed to send to cacheQueue", ix)
-				}
-			}
-		}
-
-		// report that some of the messages were not processed
-		if err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
-			return awssqs.ErrOneOrMoreOperationsUnsuccessful
-		}
 	}
 
-	// report that some of the messages were not processed
-	if err1 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
-		return awssqs.ErrOneOrMoreOperationsUnsuccessful
-	}
-
+	// if we get here, everything worked as expected
 	return nil
+}
+
+func retrySend(aws awssqs.AWS_SQS, outQueue awssqs.QueueHandle, opStatus []awssqs.OpStatus, records []awssqs.Message) error {
+
+	retryBatch := make([]awssqs.Message, 0)
+
+	// build the retry batch
+	for ix, op := range opStatus {
+		if op == false {
+			retryBatch = append(retryBatch, records[ix])
+		}
+	}
+
+	// make sure there are items to retry
+	sz := len(retryBatch)
+	if sz == 0 {
+		return nil
+	}
+
+	retryCount := 0
+	for {
+		retryCount += 1
+		log.Printf("INFO: retrying %d item(s)", sz)
+
+		_, err := aws.BatchMessagePut(outQueue, retryBatch)
+		// success...
+		if err == nil {
+			return nil
+		}
+
+		// not success, anything other than an error we can retry, give up
+		if err != awssqs.ErrOneOrMoreOperationsUnsuccessful {
+			return err
+		}
+
+		// give up...
+		if retryCount == 3 {
+			log.Printf("ERROR: retry failed, giving up")
+			return err
+		}
+
+		// sleep for a while
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func constructMessage(record Record) awssqs.Message {
