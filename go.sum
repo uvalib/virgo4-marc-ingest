@@ -2,6 +2,8 @@ github.com/aws/aws-sdk-go v1.25.41 h1:/hj7nZ0586wFqpwjNpzWiUTwtaMgxAZNZKHay80MdX
 github.com/aws/aws-sdk-go v1.25.41/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/aws/aws-sdk-go v1.27.4 h1:pfzAQZn2B4OFFSG9YHGwfCANZICW6LGSRToP6fsWotI=
 github.com/aws/aws-sdk-go v1.27.4/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
+github.com/aws/aws-sdk-go v1.28.0 h1:NkmnHFVEMTRYTleRLm5xUaL1mHKKkYQl4rCd+jzD58c=
+github.com/aws/aws-sdk-go v1.28.0/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
@@ -20,6 +22,10 @@ github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJy
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191125191126-4ca336c595e6 h1:niShgvDZ/EUPoFjxbBw8KKgfRmAN9o8URSgtHBZ+AWE=
 github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20191125191126-4ca336c595e6/go.mod h1:MzcdVZB7wB0mdeB7pELnVp9Pm4tWfyzN0JmiN301VYI=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20200111153001-7a74ee9611fb h1:bJ5RdrLNvIo567lb3l6xe2ce1LnvBCklKm06LGvP5fo=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20200111153001-7a74ee9611fb/go.mod h1:98wOB0RJj4A+jBnBoGHzNEuv+9JD0pOjkKFw0FuWhyU=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20200111154044-c71f480710ef h1:a+sadYKIP8zvKV7u+pGyCoYrHPpCuQxEEwolFs0yg4Y=
+github.com/uvalib/virgo4-sqs-sdk/awssqs v0.0.0-20200111154044-c71f480710ef/go.mod h1:98wOB0RJj4A+jBnBoGHzNEuv+9JD0pOjkKFw0FuWhyU=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab h1:h5tBRKZ1aY/bo6GNqe/4zWC8GkaLOFQ5wPKIOQ0i2sA=
 golang.org/x/net v0.0.0-20190918130420-a8b05e9114ab/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=

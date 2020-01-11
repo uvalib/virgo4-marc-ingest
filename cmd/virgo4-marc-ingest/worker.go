@@ -10,6 +10,9 @@ import (
 // time to wait before flushing pending records
 var flushTimeout = 5 * time.Second
 
+// number of times to retry a message put before giving up and terminating
+var sendRetries = uint( 3 )
+
 func worker(id int, config ServiceConfig, aws awssqs.AWS_SQS, outQueue awssqs.QueueHandle, cacheQueue awssqs.QueueHandle, records <-chan Record) {
 
 	count := uint(0)
@@ -97,7 +100,7 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue aws
 			log.Printf("WARNING: one or more items failed to send to the work queue, retrying...")
 
 			// retry the failed items and bail out if we cannot retry
-			err1 = retrySend(aws, outQueue, opStatus1, batch1)
+			err1 = aws.MessagePutRetry(outQueue, batch1, opStatus1, sendRetries )
 		}
 
 		// bail out if an error and let someone else handle it
@@ -115,7 +118,7 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue aws
 			if err2 == awssqs.ErrOneOrMoreOperationsUnsuccessful {
 				log.Printf("WARNING: one or more items failed to send to the cache queue, retrying...")
 				// retry the failed items and bail out if we cannot retry
-				err2 = retrySend(aws, cacheQueue, opStatus2, batch2)
+				err2 = aws.MessagePutRetry(cacheQueue, batch2, opStatus2, sendRetries )
 			}
 
 			// bail out if an error and let someone else handle it
@@ -127,50 +130,6 @@ func sendOutboundMessages(config ServiceConfig, aws awssqs.AWS_SQS, outQueue aws
 
 	// if we get here, everything worked as expected
 	return nil
-}
-
-func retrySend(aws awssqs.AWS_SQS, outQueue awssqs.QueueHandle, opStatus []awssqs.OpStatus, records []awssqs.Message) error {
-
-	retryBatch := make([]awssqs.Message, 0)
-
-	// build the retry batch
-	for ix, op := range opStatus {
-		if op == false {
-			retryBatch = append(retryBatch, records[ix])
-		}
-	}
-
-	// make sure there are items to retry
-	sz := len(retryBatch)
-	if sz == 0 {
-		return nil
-	}
-
-	retryCount := 0
-	for {
-		retryCount += 1
-		log.Printf("INFO: retrying %d item(s)", sz)
-
-		_, err := aws.BatchMessagePut(outQueue, retryBatch)
-		// success...
-		if err == nil {
-			return nil
-		}
-
-		// not success, anything other than an error we can retry, give up
-		if err != awssqs.ErrOneOrMoreOperationsUnsuccessful {
-			return err
-		}
-
-		// give up...
-		if retryCount == 3 {
-			log.Printf("ERROR: retry failed, giving up")
-			return err
-		}
-
-		// sleep for a while
-		time.Sleep(100 * time.Millisecond)
-	}
 }
 
 func constructMessage(record Record) awssqs.Message {
