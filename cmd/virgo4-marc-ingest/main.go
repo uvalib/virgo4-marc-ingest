@@ -45,6 +45,9 @@ func main() {
 	}
 
 	for {
+		// top of our processing loop
+		err = nil
+
 		// notification that there is one or more new ingest files to be processed
 		inbound, receiptHandle, e := getInboundNotification(*cfg, aws, inQueueHandle)
 		fatalIfError(e)
@@ -81,6 +84,7 @@ func main() {
 		// one of the files was invalid, we need to ignore the entire batch and delete the local files
 		if err != nil {
 			for _, f := range localNames {
+				log.Printf("INFO: removing invalid file %s", f)
 				err = os.Remove(f)
 				fatalIfError(err)
 			}
@@ -165,6 +169,7 @@ func main() {
 			log.Printf("INFO: done processing %s/%s (%s). %d records (%0.2f tps)", f.SourceBucket, f.SourceKey, localNames[ix], count, float64(count)/duration.Seconds())
 
 			// file has been ingested, remove it
+			log.Printf("INFO: removing processed file %s", localNames[ix])
 			err = os.Remove(localNames[ix])
 			fatalIfError(err)
 		}
