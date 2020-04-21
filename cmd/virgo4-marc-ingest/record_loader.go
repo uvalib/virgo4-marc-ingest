@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-//var ErrBadFileFormat = fmt.Errorf( "unrecognized file format" )
+// ErrBadRecord - a bad record encountered
 var ErrBadRecord = fmt.Errorf("bad MARC record encountered")
 
-//var ErrBadRecordId = fmt.Errorf("bad MARC record identifier")
+// ErrFileNotOpen - file is not open
 var ErrFileNotOpen = fmt.Errorf("file is not open")
 
-// the RecordLoader interface
+// RecordLoader - the interface
 type RecordLoader interface {
 	Source() string
 	Validate() error
@@ -25,7 +25,7 @@ type RecordLoader interface {
 	Done()
 }
 
-// the Marc record interface
+// Record - the record interface
 type Record interface {
 	Id() (string, error)
 	Source() string
@@ -65,7 +65,7 @@ var marcRecordFieldDirEntrySize = 12
 var fieldTerminator = byte(0x1e)
 var recordTerminator = byte(0x1d)
 
-// and the factory
+// NewRecordLoader - the factory
 func NewRecordLoader(remoteName string, localName string) (RecordLoader, error) {
 
 	file, err := os.Open(localName)
