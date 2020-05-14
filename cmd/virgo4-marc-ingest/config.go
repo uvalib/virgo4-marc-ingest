@@ -21,6 +21,17 @@ type ServiceConfig struct {
 	Workers         int // the number of worker processes
 }
 
+func envWithDefault(env string, defaultValue string) string {
+	val, set := os.LookupEnv(env)
+
+	if set == false {
+		log.Printf("environment variable not set: [%s] using default value [%s]", env, defaultValue)
+		return defaultValue
+	}
+
+	return val
+}
+
 func ensureSet(env string) string {
 	val, set := os.LookupEnv(env)
 
@@ -59,9 +70,9 @@ func LoadConfiguration() *ServiceConfig {
 
 	cfg.InQueueName = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_IN_QUEUE")
 	cfg.OutQueueName = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_OUT_QUEUE")
-	cfg.CacheQueueName = ensureSet("VIRGO4_MARC_INGEST_CACHE_QUEUE")
+	cfg.CacheQueueName = envWithDefault("VIRGO4_MARC_INGEST_CACHE_QUEUE", "")
 	cfg.PollTimeOut = int64(envToInt("VIRGO4_MARC_INGEST_QUEUE_POLL_TIMEOUT"))
-	cfg.DataSource = ensureSet("VIRGO4_MARC_INGEST_DATA_SOURCE")
+	cfg.DataSource = envWithDefault("VIRGO4_MARC_INGEST_DATA_SOURCE", "")
 	cfg.MessageBucketName = ensureSetAndNonEmpty("VIRGO4_SQS_MESSAGE_BUCKET")
 	cfg.DownloadDir = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_DOWNLOAD_DIR")
 	cfg.WorkerQueueSize = envToInt("VIRGO4_MARC_INGEST_WORK_QUEUE_SIZE")
