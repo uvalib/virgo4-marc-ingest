@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"log"
+	"net/url"
 	"time"
 )
 
@@ -40,10 +41,17 @@ func getInboundNotification(config ServiceConfig, aws awssqs.AWS_SQS, inQueueHan
 			if len(newS3objects) != 0 {
 				inboundFiles := make([]InboundFile, 0)
 				for _, s3 := range newS3objects {
+
+					// some file names may be HTML encoded... un-encode them here...
+					key, err := url.QueryUnescape(s3.S3.Object.Key)
+					if err != nil {
+						return nil, "", err
+					}
+
 					inboundFiles = append(inboundFiles,
 						InboundFile{
 							SourceBucket: s3.S3.Bucket.Name,
-							SourceKey:    s3.S3.Object.Key,
+							SourceKey:    key,
 							ObjectSize:   s3.S3.Object.Size})
 				}
 
