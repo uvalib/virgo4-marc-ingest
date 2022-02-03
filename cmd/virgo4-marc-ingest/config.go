@@ -72,7 +72,7 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.OutQueueName = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_OUT_QUEUE")
 	cfg.CacheQueueName = envWithDefault("VIRGO4_MARC_INGEST_CACHE_QUEUE", "")
 	cfg.PollTimeOut = int64(envToInt("VIRGO4_MARC_INGEST_QUEUE_POLL_TIMEOUT"))
-	cfg.DataSource = envWithDefault("VIRGO4_MARC_INGEST_DATA_SOURCE", "")
+	cfg.DataSource = envWithDefault("VIRGO4_MARC_INGEST_DATA_SOURCE", "unknown")
 	cfg.MessageBucketName = ensureSetAndNonEmpty("VIRGO4_SQS_MESSAGE_BUCKET")
 	cfg.DownloadDir = ensureSetAndNonEmpty("VIRGO4_MARC_INGEST_DOWNLOAD_DIR")
 	cfg.WorkerQueueSize = envToInt("VIRGO4_MARC_INGEST_WORK_QUEUE_SIZE")

@@ -66,37 +66,39 @@ var fieldTerminator = byte(0x1e)
 var recordTerminator = byte(0x1d)
 
 // NewRecordLoader - the factory
-func NewRecordLoader(remoteName string, localName string) (RecordLoader, error) {
+func NewRecordLoader(defaultDataSource string, remoteName string, localName string) (RecordLoader, error) {
 
 	file, err := os.Open(localName)
 	if err != nil {
 		return nil, err
 	}
 
-	source := getDataSource(remoteName)
+	source := getDataSource(defaultDataSource, remoteName)
 	buf := make([]byte, marcRecordHeaderSize)
 	return &recordLoaderImpl{File: file, DataSource: source, HeaderBuff: buf}, nil
 }
 
-func getDataSource(name string) string {
+func getDataSource(defaultDataSource string, name string) string {
 
 	//
 	// we have a convention for names which can be used to identify a data source
 	// typically is is:
-	//    /dir-name/source-name/year/file
+	//    bucket-name/dir-name/source-name/year/file
 	//
-	// so if we split the file by file separator and get 4 tokens, we can assume that
-	// token number 2 is the data source.
+	// so if we split the file by file separator and get 5 tokens, we can assume that
+	// token number 3 is the data source.
 	//
 	// in the event that we cannot, just put "unknown"
 	//
 
-	source := "unknown"
+	source := defaultDataSource
 	tokens := strings.Split(name, "/")
-	if len(tokens) == 4 {
-		source = tokens[1]
+	if len(tokens) == 5 {
+		source = tokens[2]
+		log.Printf("INFO: data source identified is: %s", source)
+	} else {
+		log.Printf("INFO: data source defaulted to: %s", source)
 	}
-	log.Printf("INFO: data source identified is: %s", source)
 	return source
 }
 
