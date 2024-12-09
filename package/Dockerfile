@@ -35,7 +35,7 @@ RUN mkdir -p $APP_HOME $APP_HOME/bin $APP_HOME/scripts
 RUN chown -R webservice $APP_HOME && chgrp -R webservice $APP_HOME
 
 # run command
-CMD scripts/entry.sh
+ENTRYPOINT ["scripts/entry.sh"]
 
 # Move in necessary assets
 COPY package/data/container_bash_profile /home/webservice/.profile
